@@ -1,0 +1,35 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-3.18/Modules/BasicConfigVersion-SameMajorVersion.cmake.in
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeCInformation.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeCommonLanguageInclude.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeDependentOption.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeGenericSystem.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeInitializeConfigs.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeLanguageInformation.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakePackageConfigHelpers.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeRCInformation.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeSystemSpecificInformation.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CMakeSystemSpecificInitialize.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CheckCSourceCompiles.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CheckIncludeFile.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/CheckLibraryExists.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Compiler/CMakeCommonCompilerMacros.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Compiler/MSVC-C.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/FindDoxygen.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/FindPackageMessage.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/FindThreads.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/GNUInstallDirs.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Platform/Windows-MSVC-C.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Platform/Windows-MSVC.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Platform/Windows.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/Platform/WindowsPaths.cmake
+C:/Program Files/CMake/share/cmake-3.18/Modules/WriteBasicConfigVersionFile.cmake
+D:/CSC/GLFW/glfw-3.3.2/CMakeLists.txt
+D:/CSC/GLFW/glfw-3.3.2/build/CMakeFiles/3.18.3/CMakeCCompiler.cmake
+D:/CSC/GLFW/glfw-3.3.2/build/CMakeFiles/3.18.3/CMakeRCCompiler.cmake
+D:/CSC/GLFW/glfw-3.3.2/build/CMakeFiles/3.18.3/CMakeSystem.cmake
+D:/CSC/GLFW/glfw-3.3.2/cmake_uninstall.cmake.in
+D:/CSC/GLFW/glfw-3.3.2/src/glfw3.pc.in
+D:/CSC/GLFW/glfw-3.3.2/src/glfw3Config.cmake.in
+D:/CSC/GLFW/glfw-3.3.2/src/glfw_config.h.in
