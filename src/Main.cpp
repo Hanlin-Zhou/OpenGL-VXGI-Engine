@@ -22,12 +22,16 @@
 #define INIT_HEIGHT 1000
 #define SD_WIDTH 1000
 #define SD_HEIGHT 1000
+
 int Left_Mouse_down = 0;
 int Right_Mouse_down = 0;
-bool center_rotate = false;
 float rotate_sensi = 0.3;
 float walk_sensi = 0.05;
+
+bool center_rotate = false;
 bool poly_mode = false;
+bool cube_shadow_enabled = false;
+bool debug_window = true;
 
 Eigen::Affine3f view_mat;
 Eigen::Vector3f cam_pos;
@@ -35,7 +39,14 @@ Eigen::Vector3f cam_right;
 Eigen::Vector3f cam_up;
 Eigen::Vector3f axis;
 Eigen::Matrix4f proj_mat;
-void renderQuad();
+
+float near_plane = 0.1f;
+float far_plane = 100.0f;
+float aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
+
+void renderQuad(float size);
+
+
 void processCamWalkInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
@@ -78,6 +89,8 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_SAMPLES, 4);
+	
 	//	//init error check
 	GLFWwindow* window = glfwCreateWindow(INIT_WIDTH, INIT_HEIGHT, "Hello Atelier", NULL, NULL);
 	if (window == NULL) {
@@ -143,6 +156,7 @@ int main() {
 	init_view_proj(view_mat, proj_mat, cam_pos, 35.0, INIT_WIDTH, INIT_HEIGHT);
 	
 
+	// can be turn into function
 	unsigned int texture1;
 	glGenTextures(1, &texture1);
 	glBindTexture(GL_TEXTURE_2D, texture1);
@@ -168,10 +182,10 @@ int main() {
 
 
 
-
+	Light mylight= Light();
 
 	///depth
-	Light mylight= Light();
+	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -186,46 +200,35 @@ int main() {
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "asdhasdasdasdasda" << std::endl;
-	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//test
-	unsigned int lightcamfbo;
-	glGenFramebuffers(1, &lightcamfbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, lightcamfbo);
-	unsigned int lightcam;
-	glGenTextures(1, &lightcam);
-	glBindTexture(GL_TEXTURE_2D, lightcam);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SD_WIDTH, SD_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, lightcam, 0);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "asdhasdasdasdasda" << std::endl;
+	// cube depth
+	glm::mat4 perspectiveShadowProj = glm::perspective(glm::radians(90.0f), aspect, near_plane, far_plane);
+	unsigned int depthCubeFBO;
+	glGenFramebuffers(1, &depthCubeFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
+	unsigned int depthCubemap;
+	glGenTextures(1, &depthCubemap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+	for (unsigned int i = 0; i < 6; ++i) {
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SD_WIDTH, SD_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	}
-	unsigned int rbo;
-	glGenRenderbuffers(1, &rbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SD_WIDTH, SD_HEIGHT); // use a single renderbuffer object for both a depth AND stencil buffer.
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
-	// now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
 
 	Shader shadowDepth("./shader/ShadowDepth.vert", "./shader/empty.frag");
-	Shader ourShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
-	Shader testShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
+	Shader cubeShadowDepth("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
+	Shader planeShadowShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
+	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubeShadowRender.frag");
 	Shader DebugShader("./shader/debug.vert", "./shader/debug.frag");
-	Model MyModel("./model/test.obj");
+	Model MyModel("./model/opengl_render_testing.obj");
 
 
 
@@ -240,15 +243,9 @@ int main() {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		// param
-		float near_plane = 0.1f, far_plane = 100.0f;
-		glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-		glm::mat4 lightView = glm::lookAt(mylight.position,
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-		
+
 		//setting
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
@@ -256,66 +253,103 @@ int main() {
 		glDepthMask(GL_TRUE);
 		glDepthFunc(GL_LESS);
 		glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
-
-		//depthMap
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-		glEnable(GL_DEPTH_TEST);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		shadowDepth.use();
-		shadowDepth.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
-		MyModel.Draw(shadowDepth);
-		//3d model
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		ourShader.use();
-		ourShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
-		ourShader.setVec3("lightPos", glm::value_ptr(mylight.position));
-		ourShader.setMat4("proj", proj_mat.data(), false);
-		ourShader.setMat4("view", view_mat.matrix().data(), false);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
-		// ourShader.setInt("shadowMap", 0);
 		if (poly_mode) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		MyModel.Draw(ourShader);
-		//test
 		
-		/*glBindFramebuffer(GL_FRAMEBUFFER, lightcamfbo);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-		glDepthMask(GL_TRUE);
-		glDepthFunc(GL_LESS);
-		glClearColor(0.3f, 0.4f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		testShader.use();
-		testShader.setVec3("lightPos", glm::value_ptr(mylight.position));
-		testShader.setMat4("proj", glm::value_ptr(lightProjection), false);
-		testShader.setMat4("view", glm::value_ptr(lightView), false);
-		MyModel.Draw(testShader);*/
-		//top right quad
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		DebugShader.use();
-		DebugShader.setInt("depthMap", 0);
-		DebugShader.setFloat("near_plane", near_plane);
-		DebugShader.setFloat("far_plane", far_plane);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
-		renderQuad();
+		if (cube_shadow_enabled) {
+			// setup
+			std::vector<glm::mat4> shadowTransforms;
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+			shadowTransforms.push_back(perspectiveShadowProj *
+				glm::lookAt(mylight.position, mylight.position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+
+			//depthMap
+			glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
+			glEnable(GL_DEPTH_TEST);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			cubeShadowDepth.use();
+			cubeShadowDepth.setVec3("lightPos", glm::value_ptr(mylight.position));
+			for (unsigned int i = 0; i < 6; ++i)
+				cubeShadowDepth.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+			cubeShadowDepth.setFloat("far_plane", far_plane);
+			MyModel.Draw(cubeShadowDepth);
+
+			//3d model
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			cubeShadowShader.use();
+			cubeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
+			cubeShadowShader.setFloat("far_plane", far_plane);
+			cubeShadowShader.setMat4("proj", proj_mat.data(), false);
+			cubeShadowShader.setMat4("view", view_mat.matrix().data(), false);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+			MyModel.Draw(cubeShadowShader);
+
+		}
+		else {
+			// setup
+			glm::mat4 lightView = glm::lookAt(mylight.position,
+				glm::vec3(0.0f, 0.0f, 0.0f),
+				glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+			//depthMap
+			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+			glEnable(GL_DEPTH_TEST);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			shadowDepth.use();
+			shadowDepth.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
+			MyModel.Draw(shadowDepth);
+
+			//3d model
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			planeShadowShader.use();
+			planeShadowShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
+			planeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
+			planeShadowShader.setMat4("proj", proj_mat.data(), false);
+			planeShadowShader.setMat4("view", view_mat.matrix().data(), false);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			MyModel.Draw(planeShadowShader);
+		}
+
+		// top right debug 
+		if (debug_window) {
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			DebugShader.use();
+			DebugShader.setInt("depthMap", 0);
+			DebugShader.setFloat("near_plane", near_plane);
+			DebugShader.setFloat("far_plane", far_plane);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
+			renderQuad(0.3);
+		}
 
 		//imgui
 		{
 			ImGui::Begin("Setting");
-			ImGui::SliderFloat3("lightPos", glm::value_ptr(mylight.position), 0.0f, 8.0f);
-			ImGui::Text("This is some useful text.");
+			ImGui::SliderFloat3("lightPos", glm::value_ptr(mylight.position), 0.0f, 15.0f);
 			ImGui::Checkbox("Rotate Mode", &center_rotate);
 			ImGui::Checkbox("Poly Mode", &poly_mode);
+			ImGui::Checkbox("Debug Window", &debug_window);
+			ImGui::Checkbox("Cube Shadow", &cube_shadow_enabled);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
@@ -345,16 +379,16 @@ int main() {
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
-void renderQuad()
+void renderQuad(float size)
 {
 	if (quadVAO == 0)
 	{
 		float quadVertices[] = {
 			// positions        // texture Coords
-			0.3f,  1.0f, 0.0f, 0.0f, 1.0f,
-			0.3f, 0.3f, 0.0f, 0.0f, 0.0f,
+			size,  1.0f, 0.0f, 0.0f, 1.0f,
+			size, size, 0.0f, 0.0f, 0.0f,
 			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-			 1.0f, 0.3f, 0.0f, 1.0f, 0.0f,
+			 1.0f, size, 0.0f, 1.0f, 0.0f,
 		};
 		// setup plane VAO
 		glGenVertexArrays(1, &quadVAO);
