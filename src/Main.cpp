@@ -7,7 +7,8 @@
 #include <string>
 #include <shader.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+// #include "stb_image.h"
+#include <ApplicationUtility.h>
 #include "Model.h"
 #include <Light.h>
 #include <glm.hpp>
@@ -28,7 +29,9 @@ float walk_sensi = 0.05;
 bool center_rotate = false;
 bool poly_mode = false;
 bool cube_shadow_enabled = false;
-bool debug_window = true;
+bool debug_window = false;
+bool show_light = true;
+bool soft_shadow = false;
 
 glm::vec3 cameraPos;
 glm::vec3 cameraTarget;
@@ -36,10 +39,12 @@ glm::vec3 cameraUp;
 glm::vec3 cameraRight;
 
 float near_plane = 0.1f;
-float far_plane = 100.0f;
+float far_plane = 50.0f;
 float fov = 90.0;
 float scr_aspect = (float)INIT_WIDTH / (float)INIT_HEIGHT;
 float sd_aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
+
+float light_offset = 0.1;
 
 void renderQuad(float size);
 
@@ -89,7 +94,7 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_SAMPLES, 4);
-	
+
 	//	//init error check
 	GLFWwindow* window = glfwCreateWindow(INIT_WIDTH, INIT_HEIGHT, "Hello Atelier", NULL, NULL);
 	if (window == NULL) {
@@ -153,85 +158,68 @@ int main() {
 		return 0;
 	}
 	
+
+	// ----------------------------------------------------------------------------------------------------- //
+	// ----------------------------------------------------------------------------------------------------- //
+	// ----------------------------------------------------------------------------------------------------- //
+	
 	// camera
 	cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 	cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
+	// test teture
+	unsigned int texture1 = loadTexture("./data/uv.jpg");
 
-	// can be turn into function
-	unsigned int texture1;
-	glGenTextures(1, &texture1);
-	glBindTexture(GL_TEXTURE_2D, texture1);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	int width, height, nrChannels;
-	stbi_set_flip_vertically_on_load(true);
-	unsigned char* data = stbi_load("./data/uv.jpg", &width, &height, &nrChannels, 0);
-	if (data)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);
-
-
-
-
-
+	// light
 	Light mylight= Light();
 
-	///depth
+	// ---depth---
 	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+
+	// default depth map
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	unsigned int depthMap;
-	glGenTextures(1, &depthMap);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SD_WIDTH, SD_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	unsigned int depthMap = bindDepthMap(depthMapFBO, SD_WIDTH, SD_HEIGHT);
 
-	// cube depth
+	// soft shadow depth maps
+	unsigned int depthMapFBOs[6];
+	glGenFramebuffers(6, depthMapFBOs);
+	unsigned int depthMaps[6];
+	for (unsigned int i = 0; i < 6; i++)
+	{
+		depthMaps[i] = bindDepthMap(depthMapFBOs[i], SD_WIDTH, SD_HEIGHT);
+	}
+
+	// ---cube depth---
 	glm::mat4 perspectiveShadowProj = glm::perspective(glm::radians(fov), sd_aspect, near_plane, far_plane);
+
+	// default cube depth map
 	unsigned int depthCubeFBO;
 	glGenFramebuffers(1, &depthCubeFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
-	unsigned int depthCubemap;
-	glGenTextures(1, &depthCubemap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-	for (unsigned int i = 0; i < 6; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SD_WIDTH, SD_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	unsigned int depthCubemap = bindCubeDepthMap(depthCubeFBO, SD_WIDTH, SD_HEIGHT);
+
+
+	// light offsets for soft shadow
+	glm::vec3 offsets[6];
+	offsets[0] = glm::vec3(light_offset, 0.0, 0.0);
+	offsets[1] = glm::vec3(-light_offset, 0.0, 0.0);
+	offsets[2] = glm::vec3(0.0, light_offset, 0.0);
+	offsets[3] = glm::vec3(0.0, -light_offset, 0.0);
+	offsets[4] = glm::vec3(0.0, 0.0, light_offset);
+	offsets[5] = glm::vec3(0.0, 0.0, -light_offset);
+
 
 	Shader shadowDepth("./shader/ShadowDepth.vert", "./shader/empty.frag");
 	Shader cubeShadowDepth("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
 	Shader planeShadowShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
+	Shader planeShadowSoftShader("./shader/SoftShadowRender.vert", "./shader/SoftShadowRender.frag");
 	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubeShadowRender.frag");
 	Shader DebugShader("./shader/debug.vert", "./shader/debug.frag");
+	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
+
 	Model MyModel("./model/opengl_render_testing.obj");
+	Model LightModel("./model/light.obj");
 
 
 
@@ -241,7 +229,20 @@ int main() {
 	ImGui_ImplOpenGL3_Init("#version 430");
 	ImGui::StyleColorsDark();
 
+	double lastTime = glfwGetTime();
+	int nbFrames = 0;
+	float frameCostMS = 0.0;
+
 	while (!glfwWindowShouldClose(window)) {
+		// fps
+		double currentTime = glfwGetTime();
+		nbFrames++;
+		if (currentTime - lastTime >= 1.0) {
+			frameCostMS = 1000.0 / double(nbFrames);
+			nbFrames = 0;
+			lastTime = currentTime;
+		}
+		// start
 		processCamWalkInput(window);
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -314,6 +315,19 @@ int main() {
 				glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
+			//soft Shadow
+			glm::mat4 lightSpaceMatrixArray[6];
+			if (soft_shadow) {
+				for (unsigned int i = 0; i < 6; i++)
+				{
+					glm::mat4 lightView = glm::lookAt(mylight.position + offsets[i],
+						glm::vec3(0.0f, 0.0f, 0.0f),
+						glm::vec3(0.0f, 1.0f, 0.0f));
+					lightSpaceMatrixArray[i] = lightProjection * lightView;
+				}
+			}
+			
+
 			//depthMap
 			glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -322,6 +336,19 @@ int main() {
 			shadowDepth.use();
 			shadowDepth.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
 			MyModel.Draw(shadowDepth);
+
+			if (soft_shadow) {
+				for (unsigned int i = 0; i < 6; i++)
+				{
+					glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[i]);
+					glEnable(GL_DEPTH_TEST);
+					glClear(GL_DEPTH_BUFFER_BIT);
+					shadowDepth.use();
+					shadowDepth.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrixArray[i]), false);
+					MyModel.Draw(shadowDepth);
+					glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				}
+			}
 
 			//3d model
 			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
@@ -333,8 +360,18 @@ int main() {
 			planeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
 			planeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			planeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
+			planeShadowShader.setBool("soft_shadow", soft_shadow);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, depthMap);
+			if (soft_shadow) {
+				for (unsigned int i = 0; i < 6; i++) {
+					planeShadowShader.setMat4("LSM[" + std::to_string(i) + "]", lightSpaceMatrixArray[i]);
+					glActiveTexture(GL_TEXTURE0 + i + 1);
+					glBindTexture(GL_TEXTURE_2D, depthMaps[i]);
+					planeShadowShader.setInt("depthMaps[" + std::to_string(i) + "]", 1 + i);
+				}
+			}
+			
 			MyModel.Draw(planeShadowShader);
 		}
 
@@ -347,10 +384,20 @@ int main() {
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glBindTexture(GL_TEXTURE_2D, depthMaps[2]);
 			renderQuad(0.3);
 		}
-
+		if (show_light) {
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, mylight.position);
+			showLightShader.use();
+			showLightShader.setMat4("model", glm::value_ptr(model), false);
+			showLightShader.setMat4("view", glm::value_ptr(view_mat), false);
+			showLightShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+			LightModel.Draw(showLightShader);
+		}
 		//imgui
 		{
 			ImGui::Begin("Setting");
@@ -359,6 +406,7 @@ int main() {
 			ImGui::Checkbox("Poly Mode", &poly_mode);
 			ImGui::Checkbox("Debug Window", &debug_window);
 			ImGui::Checkbox("Cube Shadow", &cube_shadow_enabled);
+			ImGui::Checkbox("Soft Shadow", &soft_shadow);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
@@ -377,6 +425,7 @@ int main() {
 				// std::cout << "cam_pos: \n" << cam_pos << "\nview_mat: \n" << view_mat.matrix() << "\trans_cam: \n" << axis <<"\n ========================"<< std::endl;
 			}
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::Text("%f ms/frame", frameCostMS);
 			ImGui::End();
 		}
 
