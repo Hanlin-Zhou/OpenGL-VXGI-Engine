@@ -5,10 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
-#include <eigen/Core>
-#include <Eigen/Geometry>
 #include <shader.h>
-#include <setup.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "Model.h"
@@ -20,8 +17,8 @@
 
 #define INIT_WIDTH 1000
 #define INIT_HEIGHT 1000
-#define SD_WIDTH 1000
-#define SD_HEIGHT 1000
+#define SD_WIDTH 2000
+#define SD_HEIGHT 2000
 
 int Left_Mouse_down = 0;
 int Right_Mouse_down = 0;
@@ -33,47 +30,49 @@ bool poly_mode = false;
 bool cube_shadow_enabled = false;
 bool debug_window = true;
 
-Eigen::Affine3f view_mat;
-Eigen::Vector3f cam_pos;
-Eigen::Vector3f cam_right;
-Eigen::Vector3f cam_up;
-Eigen::Vector3f axis;
-Eigen::Matrix4f proj_mat;
+glm::vec3 cameraPos;
+glm::vec3 cameraTarget;
+glm::vec3 cameraUp;
+glm::vec3 cameraRight;
 
 float near_plane = 0.1f;
 float far_plane = 100.0f;
-float aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
+float fov = 90.0;
+float scr_aspect = (float)INIT_WIDTH / (float)INIT_HEIGHT;
+float sd_aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
 
 void renderQuad(float size);
 
 
 void processCamWalkInput(GLFWwindow* window) {
+	glm::vec3 front_direction = glm::normalize(cameraTarget - cameraPos);
+	// front_direction[1] = 0.0;
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(0, 0, walk_sensi));
-		cam_pos(2) += walk_sensi;
+		cameraPos += walk_sensi * front_direction;
+		cameraTarget += walk_sensi * front_direction;
 	}
 	else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(0, 0, -walk_sensi));
-		cam_pos(2) -= walk_sensi;
+		cameraPos -= walk_sensi * front_direction;
+		cameraTarget -= walk_sensi * front_direction;
 	}
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(walk_sensi, 0, 0));
-		cam_pos(0) += walk_sensi;
+		cameraPos += walk_sensi * cameraRight;
+		cameraTarget += walk_sensi * cameraRight;
 	}
 	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(-walk_sensi, 0, 0));
-		cam_pos(0) -= walk_sensi;
+		cameraPos -= walk_sensi * cameraRight;
+		cameraTarget -= walk_sensi * cameraRight;
 	}
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(0, -walk_sensi, 0));
-		cam_pos(1) -= walk_sensi;
+		cameraPos += walk_sensi * cameraUp;
+		cameraTarget += walk_sensi * cameraUp;
 	}
 	else if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-		view_mat.pretranslate(Eigen::Vector3f(0, walk_sensi, 0));
-		cam_pos(1) += walk_sensi;
+		cameraPos -= walk_sensi * cameraUp;
+		cameraTarget -= walk_sensi * cameraUp;
 	}
 }
 
@@ -112,7 +111,6 @@ int main() {
 		if (!io.WantCaptureMouse) {
 			if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS) {
 				Left_Mouse_down = 1;
-				//std::cout << 1 << std::endl;
 			}
 			if (button == GLFW_MOUSE_BUTTON_2 && action == GLFW_PRESS) {
 				Right_Mouse_down = 1;
@@ -131,14 +129,16 @@ int main() {
 		static double CursorLastY = ypos;
 		ImGuiIO& io = ImGui::GetIO();
 		if (Left_Mouse_down && !io.WantCaptureMouse) {
-			//std::cout << "X:" << xpos << "\nY: " << ypos << "\nLMB: " << Left_Mouse_down << std::endl;
-			
 			if (!center_rotate) {
-				view_mat.rotate(Eigen::AngleAxisf(-rotate_sensi * M_PI * (xpos - CursorLastX) / INIT_WIDTH, -Eigen::Vector3f::UnitY()));
+				glm::mat4 rot_mat = glm::mat4(1.0f);
+				float hor_r = -glm::radians(rotate_sensi * (xpos - CursorLastX) / INIT_WIDTH) * 500.0;
+				float ver_r = glm::radians(rotate_sensi * (ypos - CursorLastY) / INIT_HEIGHT) * 400.0;
+				rot_mat = glm::rotate(rot_mat, hor_r, cameraUp);
+				rot_mat = glm::rotate(rot_mat, ver_r, cameraRight);
+				glm::vec4 temp_cameraPos = rot_mat * glm::vec4(cameraPos.x - cameraTarget.x, cameraPos.y - cameraTarget.y, cameraPos.z - cameraTarget.z, 1.0);
+				cameraPos = glm::vec3(cameraTarget.x + temp_cameraPos.x / temp_cameraPos[3], cameraTarget.y + temp_cameraPos.y / temp_cameraPos[3], cameraTarget.z + temp_cameraPos.z / temp_cameraPos[3]);
 			}
 			else {
-				view_mat.prerotate(Eigen::AngleAxisf(rotate_sensi * M_PI * (xpos - CursorLastX) / INIT_WIDTH, -Eigen::Vector3f::UnitY()));
-				view_mat.prerotate(Eigen::AngleAxisf(rotate_sensi * M_PI * (ypos - CursorLastY) / INIT_HEIGHT, -Eigen::Vector3f::UnitX()));
 			}
 		}
 		CursorLastX = xpos;
@@ -153,8 +153,11 @@ int main() {
 		return 0;
 	}
 	
-	init_view_proj(view_mat, proj_mat, cam_pos, 35.0, INIT_WIDTH, INIT_HEIGHT);
-	
+	// camera
+	cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
+	cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
 
 	// can be turn into function
 	unsigned int texture1;
@@ -203,7 +206,7 @@ int main() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// cube depth
-	glm::mat4 perspectiveShadowProj = glm::perspective(glm::radians(90.0f), aspect, near_plane, far_plane);
+	glm::mat4 perspectiveShadowProj = glm::perspective(glm::radians(fov), sd_aspect, near_plane, far_plane);
 	unsigned int depthCubeFBO;
 	glGenFramebuffers(1, &depthCubeFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
@@ -243,7 +246,9 @@ int main() {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-
+		cameraRight = glm::normalize(glm::cross(glm::normalize(cameraPos - cameraTarget), cameraUp));
+		glm::mat4 view_mat = glm::lookAt(cameraPos, cameraTarget, cameraUp);
+		glm::mat4 proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
 		//setting
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glEnable(GL_DEPTH_TEST);
@@ -252,7 +257,6 @@ int main() {
 		glFrontFace(GL_CCW);
 		glDepthMask(GL_TRUE);
 		glDepthFunc(GL_LESS);
-		glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
 		if (poly_mode) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
@@ -277,6 +281,7 @@ int main() {
 				glm::lookAt(mylight.position, mylight.position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 
 			//depthMap
+			glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
 			glEnable(GL_DEPTH_TEST);
 			glClear(GL_DEPTH_BUFFER_BIT);
@@ -288,14 +293,15 @@ int main() {
 			MyModel.Draw(cubeShadowDepth);
 
 			//3d model
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			cubeShadowShader.use();
 			cubeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
 			cubeShadowShader.setFloat("far_plane", far_plane);
-			cubeShadowShader.setMat4("proj", proj_mat.data(), false);
-			cubeShadowShader.setMat4("view", view_mat.matrix().data(), false);
+			cubeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+			cubeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 			MyModel.Draw(cubeShadowShader);
@@ -309,6 +315,7 @@ int main() {
 			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
 			//depthMap
+			glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 			glEnable(GL_DEPTH_TEST);
 			glClear(GL_DEPTH_BUFFER_BIT);
@@ -317,14 +324,15 @@ int main() {
 			MyModel.Draw(shadowDepth);
 
 			//3d model
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			planeShadowShader.use();
 			planeShadowShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
 			planeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
-			planeShadowShader.setMat4("proj", proj_mat.data(), false);
-			planeShadowShader.setMat4("view", view_mat.matrix().data(), false);
+			planeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+			planeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, depthMap);
 			MyModel.Draw(planeShadowShader);
@@ -332,6 +340,7 @@ int main() {
 
 		// top right debug 
 		if (debug_window) {
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			DebugShader.use();
 			DebugShader.setInt("depthMap", 0);
@@ -354,11 +363,18 @@ int main() {
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
 			if (ImGui::Button("Reset Cam")) {
-				view_mat = Eigen::Affine3f::Identity() * Eigen::Translation3f(Eigen::Vector3f(0, 0, -10));
-				cam_pos = Eigen::Vector3f(0, 0, -10);
+				cameraPos = glm::vec3(0.0f, 0.0f, -20.0f);
+				cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+				cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+				cameraRight = glm::normalize(glm::cross(cameraUp, glm::normalize(cameraPos - cameraTarget)));
+			}
+			if (ImGui::Button("Reset Target")) {
+				cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 			}
 			if (ImGui::Button("Print Debug")) {
-				std::cout << "cam_pos: \n" << cam_pos << "\nview_mat: \n" << view_mat.matrix() << "\trans_cam: \n" << axis <<"\n ========================"<< std::endl;
+				std::cout << glm::to_string(view_mat) << std::endl;
+				std::cout << glm::to_string(cameraPos) << std::endl;
+				// std::cout << "cam_pos: \n" << cam_pos << "\nview_mat: \n" << view_mat.matrix() << "\trans_cam: \n" << axis <<"\n ========================"<< std::endl;
 			}
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
