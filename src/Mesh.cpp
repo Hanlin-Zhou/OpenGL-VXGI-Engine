@@ -38,23 +38,46 @@ void Mesh::setupMesh() {
 
 
 void Mesh::Draw(Shader& shader) {
-	//unsigned int diffuseNr = 1;
-	//unsigned int specularNr = 1;
-	//for (unsigned int i = 0; i < textures.size(); i++)
-	//{
-	//	glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
-	//	// retrieve texture number (the N in diffuse_textureN)
-	//	std::string number;
-	//	std::string name = textures[i].type;
-	//	if (name == "texture_diffuse")
-	//		number = std::to_string(diffuseNr++);
-	//	else if (name == "texture_specular")
-	//		number = std::to_string(specularNr++);
-
-	//	shader.setFloat(("material." + name + number).c_str(), i);
-	//	glBindTexture(GL_TEXTURE_2D, textures[i].id);
-	//}
-	//glActiveTexture(GL_TEXTURE0);
+	unsigned int diffuseNr = 1;
+	unsigned int specularNr = 1;
+	unsigned int normalNr = 1;
+	unsigned int heightNr = 1;
+	unsigned int opacityNr = 1;
+	shader.setBool("diffuse", false);
+	shader.setBool("specular", false);
+	shader.setBool("normal", false);
+	shader.setBool("height", false);
+	shader.setBool("opacity", false);
+	for (unsigned int i = 0; i < textures.size(); i++)
+	{
+		glActiveTexture(GL_TEXTURE0 + i+8); // activate proper texture unit before binding
+		// retrieve texture number (the N in diffuse_textureN)
+		std::string number;
+		std::string name = textures[i].type;
+		if (name == "texture_diffuse") {
+			number = std::to_string(diffuseNr++);
+			shader.setBool("diffuse", true);
+		}
+		else if (name == "texture_specular") {
+			number = std::to_string(specularNr++);
+			shader.setBool("specular", true);
+		}
+		else if (name == "texture_normal") {
+			number = std::to_string(normalNr++);
+			shader.setBool("normal", true);
+		}
+		else if (name == "texture_height") {
+			number = std::to_string(heightNr++);
+			shader.setBool("height", true);
+		}
+		else if (name == "texture_opacity") {
+			number = std::to_string(opacityNr++);
+			shader.setBool("opacity", true);
+		}
+		shader.setInt((name + number).c_str(), i + 8);
+		glBindTexture(GL_TEXTURE_2D, textures[i].id);
+	}
+	glActiveTexture(GL_TEXTURE0);
 
 	// draw mesh
 	glBindVertexArray(VAO);

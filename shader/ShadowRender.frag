@@ -12,7 +12,20 @@ in VS_OUT {
 uniform sampler2D depthMaps[6];
 uniform sampler2D depthMap;
 uniform vec3 lightPos;
-uniform bool soft_shadow;
+uniform vec3 viewPos;
+uniform bool multiCam;
+
+uniform sampler2D texture_diffuse1;
+uniform sampler2D texture_specular1;
+uniform sampler2D texture_normal1;
+uniform sampler2D texture_height1;
+uniform sampler2D texture_opacity1;
+
+uniform bool diffuse;
+uniform bool specular;
+uniform bool normal;
+uniform bool height;
+uniform bool opacity;
 
 float ShadowCalculation(vec4 fragPosLightSpace)
 {
@@ -66,31 +79,35 @@ float ShadowSoftCalculation()
 }
 
 void main()
-{           
-    vec3 color = vec3(1.0,1.0,1.0);
+{   
+    vec3 color;
+    if (diffuse){
+        color = texture(texture_diffuse1, fs_in.TexCoords).rgb;
+    }else{
+        color = vec3(1.0, 1.0, 1.0);
+    }
     vec3 normal = normalize(fs_in.Normal);
     vec3 lightColor = vec3(1.0);
-    // ambient
-    // vec3 ambient = 0.15 * color;
-    // diffuse
     vec3 lightDir = normalize(lightPos - fs_in.FragPos);
     float diff = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = diff * lightColor;
-    // specular
-    // vec3 viewDir = normalize(viewPos - fs_in.FragPos);
-    // float spec = 0.0;
-    // vec3 halfwayDir = normalize(lightDir + viewDir);  
-    // spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
-    // vec3 specular = spec * lightColor;    
-    // calculate shadow
+    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
+    float ks;
+    if (specular){
+        ks = texture(texture_specular1, fs_in.TexCoords).r;
+    }else{
+        ks = 0.01;
+    }
+    float spec;
+    vec3 halfwayDir = normalize(lightDir + viewDir);  
+    spec = pow(max(dot(normal, halfwayDir), 0.0), 10.0);
+    float specular = spec * ks;
     float shadow;
-    if (soft_shadow){
+    if (multiCam){
         shadow = ShadowSoftCalculation();
     } else{
         shadow = ShadowCalculation(fs_in.FragPosLightSpace);
     }  
-    // vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
-    vec3 lighting = (1.0 - shadow) * diffuse * color;
+    vec3 lighting = (1.0 - shadow) * (diffuse + specular) * color;    
     FragColor = vec4(lighting, 1.0);
-    // FragColor = texture(depthMap, fs_in.TexCoords);
 }

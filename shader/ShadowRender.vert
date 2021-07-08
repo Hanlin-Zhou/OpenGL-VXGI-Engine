@@ -15,7 +15,7 @@ uniform mat4 proj;
 uniform mat4 view;
 uniform mat4 lightSpaceMatrix;
 uniform mat4 LSM[6];
-uniform bool soft_shadow;
+uniform bool multiCam;
 
 void main()
 {    
@@ -25,7 +25,7 @@ void main()
     vs_out.Normal = aNormal;
     vs_out.TexCoords = aTexCoords;
     vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
-    if (soft_shadow){
+    if (multiCam){
         for (int i = 0; i < 6; i++){
             vs_out.FPLS[i] = LSM[i] * vec4(vs_out.FragPos, 1.0);
         }

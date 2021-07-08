@@ -28,10 +28,11 @@ float walk_sensi = 0.05;
 
 bool center_rotate = false;
 bool poly_mode = false;
-bool cube_shadow_enabled = false;
+bool cube_shadow_enabled = true;
 bool debug_window = false;
 bool show_light = true;
-bool soft_shadow = false;
+bool multiCam = false;
+bool peter_pan = true;
 
 glm::vec3 cameraPos;
 glm::vec3 cameraTarget;
@@ -39,7 +40,7 @@ glm::vec3 cameraUp;
 glm::vec3 cameraRight;
 
 float near_plane = 0.1f;
-float far_plane = 50.0f;
+float far_plane = 100.0f;
 float fov = 90.0;
 float scr_aspect = (float)INIT_WIDTH / (float)INIT_HEIGHT;
 float sd_aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
@@ -213,12 +214,14 @@ int main() {
 	Shader shadowDepth("./shader/ShadowDepth.vert", "./shader/empty.frag");
 	Shader cubeShadowDepth("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
 	Shader planeShadowShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
-	Shader planeShadowSoftShader("./shader/SoftShadowRender.vert", "./shader/SoftShadowRender.frag");
-	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubeShadowRender.frag");
+	// Shader planeShadowSoftShader("./shader/SoftShadowRender.vert", "./shader/SoftShadowRender.frag");
+	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubePCSS.frag");
 	Shader DebugShader("./shader/debug.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
 
-	Model MyModel("./model/opengl_render_testing.obj");
+	Model MyModel("./model/sponza/sponza.obj"); 
+	// Model MyModel("./model/opengl_render_testing.obj");
+	// Model MyModel("./model/softshadowtest.obj");
 	Model LightModel("./model/light.obj");
 
 
@@ -291,7 +294,14 @@ int main() {
 			for (unsigned int i = 0; i < 6; ++i)
 				cubeShadowDepth.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 			cubeShadowDepth.setFloat("far_plane", far_plane);
-			MyModel.Draw(cubeShadowDepth);
+			if (peter_pan) {
+				glCullFace(GL_FRONT);
+				MyModel.Draw(cubeShadowDepth);
+				glCullFace(GL_BACK);
+			}
+			else {
+				MyModel.Draw(cubeShadowDepth);
+			}
 
 			//3d model
 			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
@@ -300,11 +310,13 @@ int main() {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			cubeShadowShader.use();
 			cubeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
+			cubeShadowShader.setVec3("viewPos", glm::value_ptr(cameraPos));
 			cubeShadowShader.setFloat("far_plane", far_plane);
 			cubeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			cubeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+			cubeShadowShader.setInt("depthCubemap", 0);
 			MyModel.Draw(cubeShadowShader);
 
 		}
@@ -317,7 +329,7 @@ int main() {
 
 			//soft Shadow
 			glm::mat4 lightSpaceMatrixArray[6];
-			if (soft_shadow) {
+			if (multiCam) {
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					glm::mat4 lightView = glm::lookAt(mylight.position + offsets[i],
@@ -337,7 +349,7 @@ int main() {
 			shadowDepth.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
 			MyModel.Draw(shadowDepth);
 
-			if (soft_shadow) {
+			if (multiCam) {
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOs[i]);
@@ -358,12 +370,14 @@ int main() {
 			planeShadowShader.use();
 			planeShadowShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
 			planeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
+			planeShadowShader.setVec3("viewPos", glm::value_ptr(cameraPos));
 			planeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			planeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
-			planeShadowShader.setBool("soft_shadow", soft_shadow);
+			planeShadowShader.setBool("multiCam", multiCam);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, depthMap);
-			if (soft_shadow) {
+			// planeShadowShader.setInt("depthMap", 0);
+			if (multiCam) {
 				for (unsigned int i = 0; i < 6; i++) {
 					planeShadowShader.setMat4("LSM[" + std::to_string(i) + "]", lightSpaceMatrixArray[i]);
 					glActiveTexture(GL_TEXTURE0 + i + 1);
@@ -384,7 +398,7 @@ int main() {
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, depthMaps[2]);
+			glBindTexture(GL_TEXTURE_2D, depthMap);
 			renderQuad(0.3);
 		}
 		if (show_light) {
@@ -401,12 +415,13 @@ int main() {
 		//imgui
 		{
 			ImGui::Begin("Setting");
-			ImGui::SliderFloat3("lightPos", glm::value_ptr(mylight.position), 0.0f, 15.0f);
+			ImGui::SliderFloat3("lightPos", glm::value_ptr(mylight.position), -30.0f, 30.0f);
 			ImGui::Checkbox("Rotate Mode", &center_rotate);
 			ImGui::Checkbox("Poly Mode", &poly_mode);
 			ImGui::Checkbox("Debug Window", &debug_window);
 			ImGui::Checkbox("Cube Shadow", &cube_shadow_enabled);
-			ImGui::Checkbox("Soft Shadow", &soft_shadow);
+			ImGui::Checkbox("Soft Shadow", &multiCam);
+			ImGui::Checkbox("Peter Pan", &peter_pan);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
