@@ -19,12 +19,6 @@ uniform sampler2D texture_normal1;
 uniform sampler2D texture_height1;
 uniform sampler2D texture_opacity1;
 
-uniform bool diffuse;
-uniform bool specular;
-uniform bool normal;
-uniform bool height;
-uniform bool opacity;
-
 
 vec3 offsetDisk[6] = vec3[](
     vec3(1,0,0),
@@ -85,7 +79,9 @@ float ShadowCalculation(vec3 fragPos)
 
 void main()
 {           
-    vec3 color = texture(texture_diffuse1, fs_in.TexCoords).rgb;
+    float gamma = 2.2;
+    vec3 color = pow(texture(texture_diffuse1, fs_in.TexCoords).rgb, vec3(gamma));
+    float op = texture(texture_diffuse1, fs_in.TexCoords).a;
     // color = vec3(1.0, 1.0, 1.0);
     vec3 normal = normalize(fs_in.Normal);
     vec3 lightColor = vec3(1.0);
@@ -103,5 +99,9 @@ void main()
     float shadow = ShadowCalculation(fs_in.FragPos);
     vec3 lighting = shadow * (diffuse + specular) * color;    
     // FragColor = vec4(lighting, 1.0);
-    FragColor = vec4(lighting, 1.0);
+    float opacity = texture(texture_opacity1, fs_in.TexCoords).r;
+    if(op < 0.1)
+        discard;
+    FragColor = vec4(lighting, 1);
+    FragColor.rgb = pow(FragColor.rgb, vec3(1.0/gamma));
 }  

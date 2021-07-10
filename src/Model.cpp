@@ -10,7 +10,7 @@ void Model::Draw(Shader& shader) {
 
 void Model::loadModel(std::string path) {
 	Assimp::Importer import;
-	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
@@ -55,6 +55,12 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		nor_vector.y = mesh->mNormals[i].y;
 		nor_vector.z = mesh->mNormals[i].z;
 		vertex.Normal = nor_vector;
+
+		glm::vec3 tan_vector;
+		tan_vector.x = mesh->mTangents[i].x;
+		tan_vector.y = mesh->mTangents[i].y;
+		tan_vector.z = mesh->mTangents[i].z;
+		vertex.Tangent = tan_vector;
 
 		if (mesh->mTextureCoords[0]) 
 		{
@@ -155,12 +161,20 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 		else if (nrComponents == 4)
 			format = GL_RGBA;
 
+		
 		glBindTexture(GL_TEXTURE_2D, textureID);
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		if (nrComponents <= 2){
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		}
+		else {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		}
+		
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 

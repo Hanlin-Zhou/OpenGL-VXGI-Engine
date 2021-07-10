@@ -1,6 +1,37 @@
 #include <iostream>
 #include "stb_image.h"
 
+
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad(float size)
+{
+	if (quadVAO == 0)
+	{
+		float quadVertices[] = {
+			// positions        // texture Coords
+			size,  1.0f, 0.0f, 0.0f, 1.0f,
+			size, size, 0.0f, 0.0f, 0.0f,
+			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+			 1.0f, size, 0.0f, 1.0f, 0.0f,
+		};
+		// setup plane VAO
+		glGenVertexArrays(1, &quadVAO);
+		glGenBuffers(1, &quadVBO);
+		glBindVertexArray(quadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	}
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+}
+
+
 unsigned int loadTexture(char* path) {
 	unsigned int texture;
 	glGenTextures(1, &texture);
@@ -22,7 +53,7 @@ unsigned int loadTexture(char* path) {
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	// glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }
 
@@ -69,4 +100,18 @@ unsigned int bindCubeDepthMap(unsigned int FBO, int width, int height) {
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	return depthCubemap;
+}
+
+
+unsigned int bindColorBuffer(unsigned int FBO, int width, int height, GLenum attachment, GLint format) {
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	unsigned int colorBufferTexture;
+	glGenTextures(1, &colorBufferTexture);
+	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, colorBufferTexture, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return colorBufferTexture;
 }

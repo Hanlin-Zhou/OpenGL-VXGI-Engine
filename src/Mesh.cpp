@@ -1,5 +1,4 @@
 #include <Mesh.h>
-//#include <cstddef>
 
 
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures) {
@@ -43,40 +42,60 @@ void Mesh::Draw(Shader& shader) {
 	unsigned int normalNr = 1;
 	unsigned int heightNr = 1;
 	unsigned int opacityNr = 1;
-	shader.setBool("diffuse", false);
-	shader.setBool("specular", false);
-	shader.setBool("normal", false);
-	shader.setBool("height", false);
-	shader.setBool("opacity", false);
+
+	float default_1[4] = { 1.0,1.0,1.0,1.0 };
+	float default_0[4] = { 0.0,0.0,0.0,0.0 };
+	unsigned int default_tex_1, default_tex_0;
+	glGenTextures(1, &default_tex_1);
+	glGenTextures(1, &default_tex_0);
+	glBindTexture(GL_TEXTURE_2D, default_tex_1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, default_1);
+	glBindTexture(GL_TEXTURE_2D, default_tex_0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, default_0);
+
+	glActiveTexture(GL_TEXTURE10); // diff
+	glBindTexture(GL_TEXTURE_2D, default_tex_1);
+	glActiveTexture(GL_TEXTURE11); // spec
+	glBindTexture(GL_TEXTURE_2D, default_tex_0);
+	glActiveTexture(GL_TEXTURE12); // norm
+	glBindTexture(GL_TEXTURE_2D, default_tex_0);
+	glActiveTexture(GL_TEXTURE13); // height
+	glBindTexture(GL_TEXTURE_2D, default_tex_0);
+	glActiveTexture(GL_TEXTURE14); // opac
+	glBindTexture(GL_TEXTURE_2D, default_tex_1);
+
 	for (unsigned int i = 0; i < textures.size(); i++)
 	{
-		glActiveTexture(GL_TEXTURE0 + i+8); // activate proper texture unit before binding
+		// glActiveTexture(GL_TEXTURE0 + i+8); // activate proper texture unit before binding
 		// retrieve texture number (the N in diffuse_textureN)
 		std::string number;
 		std::string name = textures[i].type;
 		if (name == "texture_diffuse") {
-			number = std::to_string(diffuseNr++);
-			shader.setBool("diffuse", true);
+			glActiveTexture(GL_TEXTURE10);
+			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 		else if (name == "texture_specular") {
-			number = std::to_string(specularNr++);
-			shader.setBool("specular", true);
+			glActiveTexture(GL_TEXTURE11);
+			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 		else if (name == "texture_normal") {
-			number = std::to_string(normalNr++);
-			shader.setBool("normal", true);
+			glActiveTexture(GL_TEXTURE12);
+			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 		else if (name == "texture_height") {
-			number = std::to_string(heightNr++);
-			shader.setBool("height", true);
+			glActiveTexture(GL_TEXTURE13);
+			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 		else if (name == "texture_opacity") {
-			number = std::to_string(opacityNr++);
-			shader.setBool("opacity", true);
+			glActiveTexture(GL_TEXTURE14);
+			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
-		shader.setInt((name + number).c_str(), i + 8);
-		glBindTexture(GL_TEXTURE_2D, textures[i].id);
 	}
+	shader.setInt("texture_diffuse1", 10);
+	shader.setInt("texture_specular1", 11);
+	shader.setInt("texture_normal1", 12);
+	shader.setInt("texture_height1", 13);
+	shader.setInt("texture_opacity1", 14);
 	glActiveTexture(GL_TEXTURE0);
 
 	// draw mesh

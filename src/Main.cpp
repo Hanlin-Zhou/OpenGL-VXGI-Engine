@@ -33,6 +33,7 @@ bool debug_window = false;
 bool show_light = true;
 bool multiCam = false;
 bool peter_pan = true;
+bool gamma_correction = false;
 
 glm::vec3 cameraPos;
 glm::vec3 cameraTarget;
@@ -46,8 +47,6 @@ float scr_aspect = (float)INIT_WIDTH / (float)INIT_HEIGHT;
 float sd_aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
 
 float light_offset = 0.1;
-
-void renderQuad(float size);
 
 
 void processCamWalkInput(GLFWwindow* window) {
@@ -169,8 +168,21 @@ int main() {
 	cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-	// test teture
+	// test texture
 	unsigned int texture1 = loadTexture("./data/uv.jpg");
+
+	// G Buffer
+	/*unsigned int gBuffer;
+	glGenFramebuffers(1, &gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+
+	unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+
+	unsigned int gPosition = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
+	unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
+	unsigned int gAlbedoSpecular = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);
+
+	glDrawBuffers(3, attachments);*/
 
 	// light
 	Light mylight= Light();
@@ -223,7 +235,7 @@ int main() {
 	// Model MyModel("./model/opengl_render_testing.obj");
 	// Model MyModel("./model/softshadowtest.obj");
 	Model LightModel("./model/light.obj");
-
+	std::cout << GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS << std::endl;
 
 
 
@@ -398,7 +410,8 @@ int main() {
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, depthMap);
+			glBindTexture(GL_TEXTURE_2D, texture1);
+			DebugShader.setInt("depthMap", 0);
 			renderQuad(0.3);
 		}
 		if (show_light) {
@@ -416,6 +429,7 @@ int main() {
 		{
 			ImGui::Begin("Setting");
 			ImGui::SliderFloat3("lightPos", glm::value_ptr(mylight.position), -30.0f, 30.0f);
+			ImGui::Checkbox("Gamma Correction", &gamma_correction);
 			ImGui::Checkbox("Rotate Mode", &center_rotate);
 			ImGui::Checkbox("Poly Mode", &poly_mode);
 			ImGui::Checkbox("Debug Window", &debug_window);
@@ -457,31 +471,4 @@ int main() {
 	return 0;
 }
 
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
-void renderQuad(float size)
-{
-	if (quadVAO == 0)
-	{
-		float quadVertices[] = {
-			// positions        // texture Coords
-			size,  1.0f, 0.0f, 0.0f, 1.0f,
-			size, size, 0.0f, 0.0f, 0.0f,
-			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-			 1.0f, size, 0.0f, 1.0f, 0.0f,
-		};
-		// setup plane VAO
-		glGenVertexArrays(1, &quadVAO);
-		glGenBuffers(1, &quadVBO);
-		glBindVertexArray(quadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	}
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glBindVertexArray(0);
-}
+
