@@ -82,6 +82,20 @@ unsigned int bindDepthMap(unsigned int FBO, int width, int height) {
 }
 
 
+void attachRBOToBuffer(unsigned int FBO, int width, int height, GLenum component, GLenum attachment) {
+	unsigned int rboDepth;
+	glGenRenderbuffers(1, &rboDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, component, width, height);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, rboDepth);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "Framebuffer not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
+
 unsigned int bindCubeDepthMap(unsigned int FBO, int width, int height) {
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	unsigned int depthCubemap;

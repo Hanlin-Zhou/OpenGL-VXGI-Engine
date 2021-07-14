@@ -12,6 +12,7 @@ uniform samplerCube depthCubemap;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 uniform float far_plane;
+uniform bool HDR;
 
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_specular1;
@@ -102,6 +103,9 @@ void main()
     float opacity = texture(texture_opacity1, fs_in.TexCoords).r;
     if(op < 0.1)
         discard;
+    if (HDR){
+        lighting = lighting / (lighting + vec3(1.0));
+    }
     FragColor = vec4(lighting, 1);
     FragColor.rgb = pow(FragColor.rgb, vec3(1.0/gamma));
 }  

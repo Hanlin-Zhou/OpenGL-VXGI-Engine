@@ -34,6 +34,7 @@ bool show_light = true;
 bool multiCam = false;
 bool peter_pan = true;
 bool gamma_correction = false;
+bool HDR = false;
 
 glm::vec3 cameraPos;
 glm::vec3 cameraTarget;
@@ -172,17 +173,19 @@ int main() {
 	unsigned int texture1 = loadTexture("./data/uv.jpg");
 
 	// G Buffer
-	/*unsigned int gBuffer;
+	unsigned int gBuffer;
 	glGenFramebuffers(1, &gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 
-	unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+	unsigned int attachments[1] = {GL_COLOR_ATTACHMENT0};
+	// unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 
-	unsigned int gPosition = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
-	unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
-	unsigned int gAlbedoSpecular = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);
+	unsigned int hdrColor = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
+	attachRBOToBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT);
+	/*unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
+	unsigned int gAlbedoSpecular = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);*/
 
-	glDrawBuffers(3, attachments);*/
+	// glDrawBuffers(1, attachments);
 
 	// light
 	Light mylight= Light();
@@ -228,7 +231,7 @@ int main() {
 	Shader planeShadowShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
 	// Shader planeShadowSoftShader("./shader/SoftShadowRender.vert", "./shader/SoftShadowRender.frag");
 	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubePCSS.frag");
-	Shader DebugShader("./shader/debug.vert", "./shader/debug.frag");
+	Shader DebugShader("./shader/quad.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
 
 	Model MyModel("./model/sponza/sponza.obj"); 
@@ -244,19 +247,14 @@ int main() {
 	ImGui_ImplOpenGL3_Init("#version 430");
 	ImGui::StyleColorsDark();
 
-	double lastTime = glfwGetTime();
-	int nbFrames = 0;
-	float frameCostMS = 0.0;
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
+	glDepthMask(GL_TRUE);
+	glDepthFunc(GL_LESS);
 
 	while (!glfwWindowShouldClose(window)) {
-		// fps
-		double currentTime = glfwGetTime();
-		nbFrames++;
-		if (currentTime - lastTime >= 1.0) {
-			frameCostMS = 1000.0 / double(nbFrames);
-			nbFrames = 0;
-			lastTime = currentTime;
-		}
 		// start
 		processCamWalkInput(window);
 		ImGui_ImplOpenGL3_NewFrame();
@@ -267,12 +265,7 @@ int main() {
 		glm::mat4 proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
 		//setting
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-		glDepthMask(GL_TRUE);
-		glDepthFunc(GL_LESS);
+		
 		if (poly_mode) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
@@ -299,7 +292,6 @@ int main() {
 			//depthMap
 			glViewport(0, 0, SD_WIDTH, SD_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, depthCubeFBO);
-			glEnable(GL_DEPTH_TEST);
 			glClear(GL_DEPTH_BUFFER_BIT);
 			cubeShadowDepth.use();
 			cubeShadowDepth.setVec3("lightPos", glm::value_ptr(mylight.position));
@@ -326,10 +318,12 @@ int main() {
 			cubeShadowShader.setFloat("far_plane", far_plane);
 			cubeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			cubeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
+			cubeShadowShader.setBool("HDR", HDR);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 			cubeShadowShader.setInt("depthCubemap", 0);
 			MyModel.Draw(cubeShadowShader);
+
 
 		}
 		else {
@@ -436,6 +430,7 @@ int main() {
 			ImGui::Checkbox("Cube Shadow", &cube_shadow_enabled);
 			ImGui::Checkbox("Soft Shadow", &multiCam);
 			ImGui::Checkbox("Peter Pan", &peter_pan);
+			ImGui::Checkbox("HDR", &HDR);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
@@ -454,7 +449,6 @@ int main() {
 				// std::cout << "cam_pos: \n" << cam_pos << "\nview_mat: \n" << view_mat.matrix() << "\trans_cam: \n" << axis <<"\n ========================"<< std::endl;
 			}
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::Text("%f ms/frame", frameCostMS);
 			ImGui::End();
 		}
 
