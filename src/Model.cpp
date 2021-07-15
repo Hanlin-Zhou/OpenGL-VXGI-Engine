@@ -152,18 +152,28 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 	if (data)
 	{
 		GLenum format;
-		if (nrComponents == 1)
+		GLenum internalFormat;
+		if (nrComponents == 1) {
+			internalFormat = GL_RED;
 			format = GL_RED;
-		else if (nrComponents == 2)
+		}
+		else if (nrComponents == 2) {
+			internalFormat = GL_RG;
 			format = GL_RG;
-		else if (nrComponents == 3)
+		}
+		else if (nrComponents == 3) {
+			internalFormat = GL_SRGB;
+			// internalFormat = GL_RGB;
 			format = GL_RGB;
-		else if (nrComponents == 4)
+		}
+		else if (nrComponents == 4) {
+			internalFormat = GL_SRGB_ALPHA;
+			// internalFormat = GL_RGBA;
 			format = GL_RGBA;
-
+		}
 		
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		if (nrComponents <= 2){

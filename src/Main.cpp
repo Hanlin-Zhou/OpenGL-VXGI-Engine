@@ -35,6 +35,7 @@ bool multiCam = false;
 bool peter_pan = true;
 bool gamma_correction = false;
 bool HDR = false;
+bool deferred_shading = false;
 
 glm::vec3 cameraPos;
 glm::vec3 cameraTarget;
@@ -176,16 +177,13 @@ int main() {
 	unsigned int gBuffer;
 	glGenFramebuffers(1, &gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
 
-	unsigned int attachments[1] = {GL_COLOR_ATTACHMENT0};
-	// unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-
-	unsigned int hdrColor = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
+	unsigned int gPosition = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
+	unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
+	unsigned int gAlbedoSpec = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);
 	attachRBOToBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT);
-	/*unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
-	unsigned int gAlbedoSpecular = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);*/
-
-	// glDrawBuffers(1, attachments);
 
 	// light
 	Light mylight= Light();
@@ -233,6 +231,8 @@ int main() {
 	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubePCSS.frag");
 	Shader DebugShader("./shader/quad.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
+	Shader gBufferGeoPass("./shader/CubeShadowRender.vert", "./shader/gBuffer.frag");
+	Shader gBufferLightPass("./shader/deferred_shading.vert", "./shader/gCubePCSS.frag");
 
 	Model MyModel("./model/sponza/sponza.obj"); 
 	// Model MyModel("./model/opengl_render_testing.obj");
@@ -253,6 +253,7 @@ int main() {
 	glFrontFace(GL_CCW);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LESS);
+	
 
 	while (!glfwWindowShouldClose(window)) {
 		// start
@@ -265,14 +266,17 @@ int main() {
 		glm::mat4 proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
 		//setting
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		
 		if (poly_mode) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
 		else {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		
+		glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		if (cube_shadow_enabled) {
 			// setup
 			std::vector<glm::mat4> shadowTransforms;
@@ -322,8 +326,19 @@ int main() {
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 			cubeShadowShader.setInt("depthCubemap", 0);
+			glEnable(GL_FRAMEBUFFER_SRGB);
 			MyModel.Draw(cubeShadowShader);
+			glDisable(GL_FRAMEBUFFER_SRGB);
 
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			gBufferGeoPass.use();
+			gBufferGeoPass.setMat4("proj", glm::value_ptr(proj_mat), false);
+			gBufferGeoPass.setMat4("view", glm::value_ptr(view_mat), false);
+			MyModel.Draw(gBufferGeoPass);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		}
 		else {
@@ -369,10 +384,6 @@ int main() {
 			}
 
 			//3d model
-			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			planeShadowShader.use();
 			planeShadowShader.setMat4("lightSpaceMatrix", glm::value_ptr(lightSpaceMatrix), false);
 			planeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
@@ -404,9 +415,10 @@ int main() {
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, texture1);
+			glBindTexture(GL_TEXTURE_2D, gNormal);
 			DebugShader.setInt("depthMap", 0);
-			renderQuad(0.3);
+			unsigned int debugWindow = initQuad(0.0);
+			renderQuad(debugWindow);
 		}
 		if (show_light) {
 			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
@@ -418,6 +430,31 @@ int main() {
 			showLightShader.setMat4("view", glm::value_ptr(view_mat), false);
 			showLightShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			LightModel.Draw(showLightShader);
+		}
+		if (deferred_shading) {
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			gBufferLightPass.use();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, gPosition);
+			gBufferLightPass.setInt("gPosition", 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, gNormal);
+			gBufferLightPass.setInt("gNormal", 1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+			gBufferLightPass.setInt("gAlbedoSpec", 2);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+			gBufferLightPass.setInt("depthCubemap", 3);
+			gBufferLightPass.setVec3("lightPos", glm::value_ptr(mylight.position));
+			gBufferLightPass.setVec3("viewPos", glm::value_ptr(cameraPos));
+			gBufferLightPass.setFloat("far_plane", far_plane);
+			gBufferLightPass.setBool("HDR", HDR);
+			unsigned int deferred_render_window = initQuad(-1.0);
+			glEnable(GL_FRAMEBUFFER_SRGB);
+			renderQuad(deferred_render_window);
+			glDisable(GL_FRAMEBUFFER_SRGB);
 		}
 		//imgui
 		{
@@ -431,6 +468,7 @@ int main() {
 			ImGui::Checkbox("Soft Shadow", &multiCam);
 			ImGui::Checkbox("Peter Pan", &peter_pan);
 			ImGui::Checkbox("HDR", &HDR);
+			ImGui::Checkbox("Deferred", &deferred_shading);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 

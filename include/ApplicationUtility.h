@@ -2,31 +2,29 @@
 #include "stb_image.h"
 
 
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
-void renderQuad(float size)
-{
-	if (quadVAO == 0)
-	{
-		float quadVertices[] = {
-			// positions        // texture Coords
-			size,  1.0f, 0.0f, 0.0f, 1.0f,
-			size, size, 0.0f, 0.0f, 0.0f,
-			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-			 1.0f, size, 0.0f, 1.0f, 0.0f,
-		};
-		// setup plane VAO
-		glGenVertexArrays(1, &quadVAO);
-		glGenBuffers(1, &quadVBO);
-		glBindVertexArray(quadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	}
+unsigned int initQuad(float size) {
+	unsigned int quadVAO, quadVBO;
+	float quadVertices[] = {
+		size,  1.0f, 0.0f, 0.0f, 1.0f,
+		size, size, 0.0f, 0.0f, 0.0f,
+		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+		 1.0f, size, 0.0f, 1.0f, 0.0f,
+	};
+	glGenVertexArrays(1, &quadVAO);
+	glGenBuffers(1, &quadVBO);
 	glBindVertexArray(quadVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	return quadVAO;
+}
+
+
+void renderQuad(unsigned int VAO) {
+	glBindVertexArray(VAO);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glBindVertexArray(0);
 }
@@ -53,7 +51,6 @@ unsigned int loadTexture(char* path) {
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
-	// glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }
 

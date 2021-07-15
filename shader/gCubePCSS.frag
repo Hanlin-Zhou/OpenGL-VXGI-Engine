@@ -1,11 +1,7 @@
 #version 430 core
 out vec4 FragColor;
 
-in VS_OUT {
-    vec3 FragPos;
-    vec3 Normal;
-    vec2 TexCoords;
-} fs_in;
+in vec2 TexCoords;
 
 uniform samplerCube depthCubemap;
 
@@ -14,11 +10,9 @@ uniform vec3 viewPos;
 uniform float far_plane;
 uniform bool HDR;
 
-uniform sampler2D texture_diffuse1;
-uniform sampler2D texture_specular1;
-uniform sampler2D texture_normal1;
-uniform sampler2D texture_height1;
-uniform sampler2D texture_opacity1;
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D gAlbedoSpec;
 
 
 vec3 offsetDisk[6] = vec3[](
@@ -81,29 +75,26 @@ float ShadowCalculation(vec3 fragPos)
 void main()
 {           
     float gamma = 2.2;
+    vec3 FragPos = texture(gPosition, TexCoords).rgb;
     // vec3 color = pow(texture(texture_diffuse1, fs_in.TexCoords).rgb, vec3(gamma));
-    vec3 color = texture(texture_diffuse1, fs_in.TexCoords).rgb;
-    float op = texture(texture_diffuse1, fs_in.TexCoords).a;
+    vec3 color = texture(gAlbedoSpec, TexCoords).rgb;
     // color = vec3(1.0, 1.0, 1.0);
-    vec3 normal = normalize(fs_in.Normal);
+    vec3 normal = texture(gNormal, TexCoords).rgb;
     vec3 lightColor = vec3(1.0);
-    vec3 lightDir = normalize(lightPos - fs_in.FragPos);
-    float falloff = 1000.0/(4.0 * 3.1415 * length(lightPos - fs_in.FragPos) * length(lightPos - fs_in.FragPos));
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float falloff = 1000.0/(4.0 * 3.1415 * length(lightPos - FragPos) * length(lightPos - FragPos));
     float diff = max(dot(lightDir, normal), 0.0);
     float diffuse = diff * falloff;
-    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
-    float ks = texture(texture_specular1, fs_in.TexCoords).r;
+    vec3 viewDir = normalize(viewPos - FragPos);
+    float ks = texture(gAlbedoSpec, TexCoords).a;
     // float ks = 0.01;
     float spec;
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     spec = pow(max(dot(normal, halfwayDir), 0.0), 10.0);
     float specular = spec * ks * falloff;
-    float shadow = ShadowCalculation(fs_in.FragPos);
+    float shadow = ShadowCalculation(FragPos);
     vec3 lighting = shadow * (diffuse + specular) * color;    
     // FragColor = vec4(lighting, 1.0);
-    float opacity = texture(texture_opacity1, fs_in.TexCoords).r;
-    if(op < 0.1)
-        discard;
     if (HDR){
         lighting = lighting / (lighting + vec3(1.0));
     }
