@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
+#include <random>
 #include <shader.h>
 #define STB_IMAGE_IMPLEMENTATION
 // #include "stb_image.h"
@@ -20,6 +21,7 @@
 #define INIT_HEIGHT 1000
 #define SD_WIDTH 2000
 #define SD_HEIGHT 2000
+#define MSAA_SAMPLES 4
 
 int Left_Mouse_down = 0;
 int Right_Mouse_down = 0;
@@ -95,7 +97,8 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_SAMPLES, 4);
+	// glfwWindowHint(GLFW_SAMPLES, 4);
+	
 
 	//	//init error check
 	GLFWwindow* window = glfwCreateWindow(INIT_WIDTH, INIT_HEIGHT, "Hello Atelier", NULL, NULL);
@@ -152,7 +155,7 @@ int main() {
 		CursorLastY = ypos;
 	});
 
-
+	                   
 	// get function pointers
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
@@ -164,26 +167,91 @@ int main() {
 	// ----------------------------------------------------------------------------------------------------- //
 	// ----------------------------------------------------------------------------------------------------- //
 	// ----------------------------------------------------------------------------------------------------- //
-	
+	glEnable(GL_MULTISAMPLE);
 	// camera
 	cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 	cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 	// test texture
-	unsigned int texture1 = loadTexture("./data/uv.jpg");
+	unsigned int texture1 = loadTexturePath("./data/uv.jpg");	
 
 	// G Buffer
 	unsigned int gBuffer;
 	glGenFramebuffers(1, &gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
-	unsigned int gPosition = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA16F);
-	unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA16F);
-	unsigned int gAlbedoSpec = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA16F);
-	attachRBOToBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT);
+	unsigned int gPosition = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA32F, MSAA_SAMPLES, GL_LINEAR);
+	unsigned int gNormal = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA32F, MSAA_SAMPLES, GL_LINEAR);
+	unsigned int gAlbedoSpec = bindColorBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA32F, MSAA_SAMPLES, GL_LINEAR);
+	attachRBOToBuffer(gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, MSAA_SAMPLES);
+
+	// Down sampled G Buffer
+	unsigned int ds_gBuffer;
+	glGenFramebuffers(1, &ds_gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, ds_gBuffer);
+	unsigned int ds_attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+	glDrawBuffers(4, ds_attachments);
+
+	unsigned int ds_gPosition = bindColorBuffer(ds_gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
+	unsigned int ds_gNormal = bindColorBuffer(ds_gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+	unsigned int ds_gAlbedoSpec = bindColorBuffer(ds_gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
+	unsigned int ds_gViewPos = bindColorBuffer(ds_gBuffer, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT3, GL_RGBA32F, 1, GL_LINEAR);
+
+	// Post Processing 
+	// SSAO
+	std::uniform_real_distribution<float> randomFloats(0.0, 1.0); 
+	std::default_random_engine generator;
+	std::vector<glm::vec3> ssaoKernel;
+	for (unsigned int i = 0; i < 64; ++i)
+	{
+		glm::vec3 sample(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator)
+		);
+		sample = glm::normalize(sample);
+		sample *= randomFloats(generator);
+		float scale = (float)i / 64.0;
+		scale = lerp(0.1f, 1.0f, scale * scale);
+		sample *= scale;
+		ssaoKernel.push_back(sample);
+	}
+
+	std::vector<glm::vec3> ssaoNoise;
+	for (unsigned int i = 0; i < 16; i++)
+	{
+		glm::vec3 noise(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0,
+			0.0f);
+		ssaoNoise.push_back(noise);
+	}
+
+	unsigned int noiseTexture;
+	glGenTextures(1, &noiseTexture);
+	glBindTexture(GL_TEXTURE_2D, noiseTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	unsigned int ssaoFBO;
+	glGenFramebuffers(1, &ssaoFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	unsigned int ssao = bindColorBuffer(ssaoFBO, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RED, 1, GL_LINEAR);
+
+	// Post Processing Buffer
+	unsigned int PostProcessingFBO;
+	glGenFramebuffers(1, &PostProcessingFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, PostProcessingFBO);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	unsigned int blurOut = bindColorBuffer(PostProcessingFBO, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
+
 
 	// light
 	Light mylight= Light();
@@ -232,13 +300,15 @@ int main() {
 	Shader DebugShader("./shader/quad.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
 	Shader gBufferGeoPass("./shader/CubeShadowRender.vert", "./shader/gBuffer.frag");
-	Shader gBufferLightPass("./shader/deferred_shading.vert", "./shader/gCubePCSS.frag");
+	Shader gBufferLightPass("./shader/deferred_shading.vert", "./shader/MSgCubePCSS.frag");
+	Shader SSAO_Shader("./shader/deferred_shading.vert", "./shader/SSAO.frag");
+	Shader DownSampleShader("./shader/deferred_shading.vert", "./shader/downSample.frag");
+	Shader BlurShader("./shader/deferred_shading.vert", "./shader/Blur.frag");
 
 	Model MyModel("./model/sponza/sponza.obj"); 
 	// Model MyModel("./model/opengl_render_testing.obj");
 	// Model MyModel("./model/softshadowtest.obj");
 	Model LightModel("./model/light.obj");
-	std::cout << GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS << std::endl;
 
 
 
@@ -312,24 +382,8 @@ int main() {
 			}
 
 			//3d model
-			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			cubeShadowShader.use();
-			cubeShadowShader.setVec3("lightPos", glm::value_ptr(mylight.position));
-			cubeShadowShader.setVec3("viewPos", glm::value_ptr(cameraPos));
-			cubeShadowShader.setFloat("far_plane", far_plane);
-			cubeShadowShader.setMat4("proj", glm::value_ptr(proj_mat), false);
-			cubeShadowShader.setMat4("view", glm::value_ptr(view_mat), false);
-			cubeShadowShader.setBool("HDR", HDR);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-			cubeShadowShader.setInt("depthCubemap", 0);
-			glEnable(GL_FRAMEBUFFER_SRGB);
-			MyModel.Draw(cubeShadowShader);
-			glDisable(GL_FRAMEBUFFER_SRGB);
 
+			// gBuffer Geometry Pass
 			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -340,6 +394,93 @@ int main() {
 			MyModel.Draw(gBufferGeoPass);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+			// Down sample
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ds_gBuffer);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+			glDrawBuffer(GL_COLOR_ATTACHMENT0);
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			glBlitFramebuffer(0, 0, INIT_WIDTH, INIT_HEIGHT, 0, 0, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			glDrawBuffer(GL_COLOR_ATTACHMENT1);
+			glReadBuffer(GL_COLOR_ATTACHMENT1);
+			glBlitFramebuffer(0, 0, INIT_WIDTH, INIT_HEIGHT, 0, 0, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			glDrawBuffer(GL_COLOR_ATTACHMENT2);
+			glReadBuffer(GL_COLOR_ATTACHMENT2);
+			glBlitFramebuffer(0, 0, INIT_WIDTH, INIT_HEIGHT, 0, 0, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			DownSampleShader.use();
+			glDrawBuffer(GL_COLOR_ATTACHMENT3);
+			DownSampleShader.setMat4("view", glm::value_ptr(view_mat), false);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, ds_gPosition);
+			SSAO_Shader.setInt("ds_gPosition", 0);
+			unsigned int DS_quad = initQuad(-1.0, 0.7);
+			renderQuad(DS_quad);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			// SSAO
+			glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+			SSAO_Shader.use();
+			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			for (unsigned int i = 0; i < 64; i++){
+				SSAO_Shader.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
+			}
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, ds_gPosition);
+			SSAO_Shader.setInt("gPosition", 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, ds_gNormal);
+			SSAO_Shader.setInt("gNormal", 1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, noiseTexture);
+			SSAO_Shader.setInt("texNoise", 2);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, ds_gViewPos);
+			SSAO_Shader.setInt("gViewPos", 3);
+			SSAO_Shader.setMat4("proj", glm::value_ptr(proj_mat), false);
+			SSAO_Shader.setMat4("view", glm::value_ptr(view_mat), false);
+			unsigned int SSAO_quad = initQuad(-1.0, 0.7);
+			renderQuad(SSAO_quad);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			// Post Processing Blur
+			glBindFramebuffer(GL_FRAMEBUFFER, PostProcessingFBO);
+			BlurShader.use();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, ssao);
+			BlurShader.setInt("ssaoInput", 0);
+			BlurShader.setInt("sampleSize", 2);
+			unsigned int blur_quad = initQuad(-1.0, 0.7);
+			renderQuad(blur_quad);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			// Lighting Pass
+			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			gBufferLightPass.use();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gPosition);
+			gBufferLightPass.setInt("gPosition", 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gNormal);
+			gBufferLightPass.setInt("gNormal", 1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gAlbedoSpec);
+			gBufferLightPass.setInt("gAlbedoSpec", 2);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+			gBufferLightPass.setInt("depthCubemap", 3);
+			glActiveTexture(GL_TEXTURE4);
+			glBindTexture(GL_TEXTURE_2D, blurOut);
+			gBufferLightPass.setInt("SSAO", 4);
+			gBufferLightPass.setVec3("lightPos", glm::value_ptr(mylight.position));
+			gBufferLightPass.setVec3("viewPos", glm::value_ptr(cameraPos));
+			gBufferLightPass.setFloat("far_plane", far_plane);
+			gBufferLightPass.setBool("HDR", HDR);
+			gBufferLightPass.setInt("MSAA_Sample", MSAA_SAMPLES);
+			unsigned int deferred_render_window = initQuad(-1.0, 0.7);
+			glEnable(GL_FRAMEBUFFER_SRGB);
+			renderQuad(deferred_render_window);
+			glDisable(GL_FRAMEBUFFER_SRGB);
 		}
 		else {
 			// setup
@@ -405,19 +546,18 @@ int main() {
 			
 			MyModel.Draw(planeShadowShader);
 		}
-
+		
 		// top right debug 
 		if (debug_window) {
-			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			DebugShader.use();
 			DebugShader.setInt("depthMap", 0);
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, gNormal);
+			glBindTexture(GL_TEXTURE_2D, blurOut);
 			DebugShader.setInt("depthMap", 0);
-			unsigned int debugWindow = initQuad(0.0);
+			unsigned int debugWindow = initQuad(-1.0, 0.5);
 			renderQuad(debugWindow);
 		}
 		if (show_light) {
@@ -431,31 +571,6 @@ int main() {
 			showLightShader.setMat4("proj", glm::value_ptr(proj_mat), false);
 			LightModel.Draw(showLightShader);
 		}
-		if (deferred_shading) {
-			glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			gBufferLightPass.use();
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, gPosition);
-			gBufferLightPass.setInt("gPosition", 0);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, gNormal);
-			gBufferLightPass.setInt("gNormal", 1);
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-			gBufferLightPass.setInt("gAlbedoSpec", 2);
-			glActiveTexture(GL_TEXTURE3);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-			gBufferLightPass.setInt("depthCubemap", 3);
-			gBufferLightPass.setVec3("lightPos", glm::value_ptr(mylight.position));
-			gBufferLightPass.setVec3("viewPos", glm::value_ptr(cameraPos));
-			gBufferLightPass.setFloat("far_plane", far_plane);
-			gBufferLightPass.setBool("HDR", HDR);
-			unsigned int deferred_render_window = initQuad(-1.0);
-			glEnable(GL_FRAMEBUFFER_SRGB);
-			renderQuad(deferred_render_window);
-			glDisable(GL_FRAMEBUFFER_SRGB);
-		}
 		//imgui
 		{
 			ImGui::Begin("Setting");
@@ -468,7 +583,6 @@ int main() {
 			ImGui::Checkbox("Soft Shadow", &multiCam);
 			ImGui::Checkbox("Peter Pan", &peter_pan);
 			ImGui::Checkbox("HDR", &HDR);
-			ImGui::Checkbox("Deferred", &deferred_shading);
 			ImGui::SliderFloat("rotate speed", &rotate_sensi, 0.0f, 1.0f);
 			ImGui::SliderFloat("walk speed", &walk_sensi, 0.0f, 0.1f);
 
@@ -487,6 +601,15 @@ int main() {
 				// std::cout << "cam_pos: \n" << cam_pos << "\nview_mat: \n" << view_mat.matrix() << "\trans_cam: \n" << axis <<"\n ========================"<< std::endl;
 			}
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+			GLint nTotalMemoryInKB = 0;
+			glGetIntegerv(0x9048,
+				&nTotalMemoryInKB);
+
+			GLint nCurAvailMemoryInKB = 0;
+			glGetIntegerv(0x9049,
+				&nCurAvailMemoryInKB);
+			ImGui::Text("GPU Usage %.1f / %.1f", (float)nCurAvailMemoryInKB / 1024.0, (float)nTotalMemoryInKB / 1024.0);
 			ImGui::End();
 		}
 

@@ -87,7 +87,6 @@ void main()
     float diffuse = diff * falloff;
     vec3 viewDir = normalize(viewPos - FragPos);
     float ks = texture(gAlbedoSpec, TexCoords).a;
-    // float ks = 0.01;
     float spec;
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     spec = pow(max(dot(normal, halfwayDir), 0.0), 10.0);

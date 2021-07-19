@@ -2,13 +2,18 @@
 #include "stb_image.h"
 
 
-unsigned int initQuad(float size) {
+float lerp(float a, float b, float f)
+{
+	return a + f * (b - a);
+}
+
+unsigned int initQuad(float size, float dist) {
 	unsigned int quadVAO, quadVBO;
 	float quadVertices[] = {
-		size,  1.0f, 0.0f, 0.0f, 1.0f,
-		size, size, 0.0f, 0.0f, 0.0f,
-		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-		 1.0f, size, 0.0f, 1.0f, 0.0f,
+		size,  1.0f, dist, 0.0f, 1.0f,
+		size, size, dist, 0.0f, 0.0f,
+		 1.0f,  1.0f, dist, 1.0f, 1.0f,
+		 1.0f, size, dist, 1.0f, 0.0f,
 	};
 	glGenVertexArrays(1, &quadVAO);
 	glGenBuffers(1, &quadVBO);
@@ -30,7 +35,7 @@ void renderQuad(unsigned int VAO) {
 }
 
 
-unsigned int loadTexture(char* path) {
+unsigned int loadTexturePath(char* path) {
 	unsigned int texture;
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
@@ -79,15 +84,22 @@ unsigned int bindDepthMap(unsigned int FBO, int width, int height) {
 }
 
 
-void attachRBOToBuffer(unsigned int FBO, int width, int height, GLenum component, GLenum attachment) {
+void attachRBOToBuffer(unsigned int FBO, int width, int height, GLenum component, GLenum attachment, unsigned int samples) {
 	unsigned int rboDepth;
 	glGenRenderbuffers(1, &rboDepth);
 	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, component, width, height);
+	if (samples <= 1) {
+		glRenderbufferStorage(GL_RENDERBUFFER, component, width, height);
+	}
+	else {
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, component, width, height);
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, rboDepth);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "Framebuffer not complete!" << std::endl;
+		std::cout << "RBO_ATTACH Framebuffer not complete!" << std::endl;
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE)
+		std::cout << "RBO_ATTACH MULTSAMPLE!" << std::endl;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
@@ -114,15 +126,26 @@ unsigned int bindCubeDepthMap(unsigned int FBO, int width, int height) {
 }
 
 
-unsigned int bindColorBuffer(unsigned int FBO, int width, int height, GLenum attachment, GLint format) {
+unsigned int bindColorBuffer(unsigned int FBO, int width, int height, GLenum attachment, GLint format, unsigned int samples, GLint option) {
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	unsigned int colorBufferTexture;
 	glGenTextures(1, &colorBufferTexture);
-	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, colorBufferTexture, 0);
+	if (samples <= 1) {
+		glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, option);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, option);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, colorBufferTexture, 0);
+	}
+	else {
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, colorBufferTexture);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, format, width, height, GL_TRUE);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, option);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, option);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D_MULTISAMPLE, colorBufferTexture, 0);
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "COLOR_BUFFER Framebuffer not complete!" << std::endl;
 	return colorBufferTexture;
 }
