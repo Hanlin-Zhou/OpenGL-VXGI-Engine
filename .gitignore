@@ -367,3 +367,5 @@ FodyWeavers.xsd
 *.sln
 /imgui.ini
 /cmake_install.cmake
+/model/Buddha/buddha.obj
+/model/Buddha/buddha.mtl

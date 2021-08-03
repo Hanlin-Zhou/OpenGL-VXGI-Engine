@@ -10,7 +10,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump lion_bump.png
+map_Kn lion_norm.png
 map_Kd lion.png
 
 newmtl Material__298
@@ -22,7 +22,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump background_bump.png
+map_Kn background_norm.png
 map_Kd background.png
 
 newmtl Material__47
@@ -46,6 +46,7 @@ d 1.000000
 illum 1
 map_Kd vase_plant.png
 map_d vase_plant_mask.png
+map_Ks vase_plant_spec.png
 
 newmtl arch
 Ns 40.000007
@@ -57,6 +58,8 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd sponza_arch_diff.png
+map_Ks sponza_arch_spec.png
+map_Kn sponza_arch_norm.png
 
 newmtl bricks
 Ns 10.000002
@@ -67,7 +70,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump spnza_bricks_a_bump.png
+map_Kn spnza_bricks_a_norm.png
 map_Kd spnza_bricks_a_diff.png
 map_Ks spnza_bricks_a_spec.png
 
@@ -81,6 +84,7 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd sponza_ceiling_a_diff.png
+map_Ks sponza_ceiling_a_spec.png
 
 newmtl chain
 Ns 50.000007
@@ -91,9 +95,9 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump chain_texture_bump.png
 map_Kd chain_texture.png
 map_d chain_texture_mask.png
+map_kn chain_texture_norm.png
 
 newmtl column_a
 Ns 10.000002
@@ -104,8 +108,9 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump sponza_column_a_bump.png
+map_Kn sponza_column_a_norm.png
 map_Kd sponza_column_a_diff.png
+map_Ks sponza_column_a_spec.png
 
 newmtl column_b
 Ns 10.000002
@@ -116,8 +121,9 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 1
-map_Bump sponza_column_b_bump.png
+map_Kn sponza_column_b_norm.png
 map_Kd sponza_column_b_diff.png
+map_Ks sponza_column_b_spec.png
 
 newmtl column_c
 Ns 10.000002
@@ -128,8 +134,9 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump sponza_column_c_bump.png
+map_Kn sponza_column_c_norm.png
 map_Kd sponza_column_c_diff.png
+map_Ks sponza_column_c_spec.png
 
 newmtl details
 Ns 10.000002
@@ -141,6 +148,7 @@ Ni 1.500000
 d 1.000000
 illum 1
 map_Kd sponza_details_diff.png
+map_Ks sponza_details_spec.png
 
 newmtl fabric_a
 Ns 0.100000
@@ -152,6 +160,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_fabric_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl fabric_c
 Ns 0.100000
@@ -163,6 +172,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_curtain_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl fabric_d
 Ns 0.100000
@@ -174,6 +184,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_fabric_blue_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl fabric_e
 Ns 0.100000
@@ -185,6 +196,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_fabric_green_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl fabric_f
 Ns 0.100000
@@ -196,6 +208,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_curtain_green_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl fabric_g
 Ns 0.100000
@@ -207,6 +220,7 @@ Ni 1.000000
 d 1.000000
 illum 1
 map_Kd sponza_curtain_blue_diff.png
+map_Ks sponza_fabric_spec.png
 
 newmtl flagpole
 Ns 10.000002
@@ -218,6 +232,7 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd sponza_flagpole_diff.png
+map_Ks sponza_flagpole_spec.png
 
 newmtl floor
 Ns 70.000000
@@ -240,9 +255,10 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 1
-map_Bump sponza_thorn_bump.png
+map_Kn sponza_thorn_norm.png
 map_Kd sponza_thorn_diff.png
 map_d sponza_thorn_mask.png
+map_Ks sponza_thorn_spec.png
 
 newmtl roof
 Ns 10.000002
@@ -264,7 +280,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 1
-map_Bump vase_bump.png
+map_Kn vase_norm.png
 map_Kd vase_dif.png
 
 newmtl vase_hanging
@@ -277,7 +293,6 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd vase_hanging.png
-map_Ks vase_hanging.png
 
 newmtl vase_round
 Ns 10.000002
@@ -288,5 +303,6 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Bump vase_round_bump.png
+map_Kn vase_round_norm.png
 map_Kd vase_round.png
+map_Ks vase_round_spec.png

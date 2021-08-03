@@ -5,11 +5,17 @@ in vec2 TexCoords;
 uniform vec3 lightPos;
 uniform float far_plane;
 
-uniform sampler2D texture_diffuse1;
+uniform sampler2D texture_opacity1;
 
 void main()
 {
-    float lightDistance = length(FragPos.xyz - lightPos);
-    lightDistance = lightDistance / far_plane;
-    gl_FragDepth = lightDistance;
+    float opacity = texture(texture_opacity1, TexCoords).r;
+    if (opacity < 0.01){
+        discard;
+    }else{
+        float lightDistance = length(FragPos.xyz - lightPos);
+        lightDistance = lightDistance / far_plane;
+        gl_FragDepth = lightDistance;
+    }
+    
 }  

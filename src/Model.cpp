@@ -10,7 +10,8 @@ void Model::Draw(Shader& shader) {
 
 void Model::loadModel(std::string path) {
 	Assimp::Importer import;
-	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+	import.SetPropertyFloat(AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE, 0.f);
+	const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph | aiProcess_JoinIdenticalVertices);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
@@ -100,7 +101,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		// 5. opacity maps
 		std::vector<Texture> opacityMaps = loadMaterialTextures(material, aiTextureType_OPACITY, "texture_opacity");
-		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+		textures.insert(textures.end(), opacityMaps.begin(), opacityMaps.end());
 
 	}
 	return Mesh(vertices, indices, textures);
@@ -127,7 +128,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
 		if (!skip)
 		{   // if texture hasn't been loaded already, load it
 			Texture texture;
-			texture.id = TextureFromFile(str.C_Str(), directory);
+			texture.id = TextureFromFile(str.C_Str(), directory, typeName);
 			texture.type = typeName;
 			texture.path = str.C_Str();
 			textures.push_back(texture);
@@ -138,7 +139,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
 }
 
 
-unsigned int Model::TextureFromFile(const char* path, const std::string& directory, bool gamma)
+unsigned int Model::TextureFromFile(const char* path, const std::string& directory, std::string type)
 {
 	std::string filename = std::string(path);
 	filename = directory + '/' + filename;
@@ -162,14 +163,28 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 			format = GL_RG;
 		}
 		else if (nrComponents == 3) {
-			internalFormat = GL_SRGB;
-			// internalFormat = GL_RGB;
 			format = GL_RGB;
+			if (type == "texture_normal") {
+				internalFormat = GL_RGB32F;
+			}
+			else if(type == "texture_diffuse") {
+				internalFormat = GL_SRGB;
+			}
+			else {
+				internalFormat = GL_RGB;
+			}
 		}
 		else if (nrComponents == 4) {
-			internalFormat = GL_SRGB_ALPHA;
-			// internalFormat = GL_RGBA;
 			format = GL_RGBA;
+			if (type == "texture_normal") {
+				internalFormat = GL_RGBA32F;
+			}
+			else if (type == "texture_diffuse") {
+				internalFormat = GL_SRGB_ALPHA;
+			}
+			else {
+				internalFormat = GL_RGBA;
+			}
 		}
 		
 		glBindTexture(GL_TEXTURE_2D, textureID);
@@ -177,8 +192,8 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		if (nrComponents <= 2){
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		}
 		else {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

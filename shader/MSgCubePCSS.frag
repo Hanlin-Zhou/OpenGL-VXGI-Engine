@@ -121,10 +121,10 @@ void main()
     }
     // FragColor = vec4(lighting, 1.0);
     sumLight /= float(MSAA_Sample);
-    float ssao = texture(SSAO, TexCoords).r;
-    sumLight *= ssao;
     if (HDR){
         sumLight = sumLight / (sumLight + vec3(1.0));
+        float ssao = texture(SSAO, TexCoords).r;
+        sumLight *= ssao;
     }
     FragColor = vec4(sumLight, 1);
     // FragColor.rgb = pow(FragColor.rgb, vec3(1.0/gamma));

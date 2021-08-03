@@ -45,7 +45,7 @@ glm::vec3 cameraUp;
 glm::vec3 cameraRight;
 
 float near_plane = 0.1f;
-float far_plane = 100.0f;
+float far_plane =  80.0f;
 float fov = 90.0;
 float scr_aspect = (float)INIT_WIDTH / (float)INIT_HEIGHT;
 float sd_aspect = (float)SD_WIDTH / (float)SD_HEIGHT;
@@ -299,13 +299,14 @@ int main() {
 	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubePCSS.frag");
 	Shader DebugShader("./shader/quad.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
-	Shader gBufferGeoPass("./shader/CubeShadowRender.vert", "./shader/gBuffer.frag");
+	Shader gBufferGeoPass("./shader/gBuffer.vert", "./shader/gBuffer.frag");
 	Shader gBufferLightPass("./shader/deferred_shading.vert", "./shader/MSgCubePCSS.frag");
 	Shader SSAO_Shader("./shader/deferred_shading.vert", "./shader/SSAO.frag");
 	Shader DownSampleShader("./shader/deferred_shading.vert", "./shader/downSample.frag");
 	Shader BlurShader("./shader/deferred_shading.vert", "./shader/Blur.frag");
 
 	Model MyModel("./model/sponza/sponza.obj"); 
+	// Model MyModel("./model/buddha/buddha.obj");
 	// Model MyModel("./model/opengl_render_testing.obj");
 	// Model MyModel("./model/softshadowtest.obj");
 	Model LightModel("./model/light.obj");
