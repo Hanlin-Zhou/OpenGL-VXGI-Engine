@@ -16,6 +16,7 @@ uniform sampler2DMS gNormal;
 uniform sampler2DMS gAlbedoSpec;
 
 uniform sampler2D SSAO;
+uniform sampler2D skybox;
 
 
 vec3 offsetDisk[6] = vec3[](
@@ -84,23 +85,11 @@ void main()
     //    float ks = 0.0;
     ivec2 MScoord = ivec2(TexCoords * textureSize(gPosition));
     vec3 sumLight = vec3(0.0);
+    int count = 0;
     for (int i = 0; i < MSAA_Sample; i++){
-        //    for (int i = 0; i < MSAA_Sample; i++){
-        //        FragPos += texelFetch(gPosition, MScoord, i).rgb;
-        //        color += texelFetch(gAlbedoSpec, MScoord, i).rgb;
-        //        normal += texelFetch(gNormal, MScoord, i).rgb;
-        //        ks += texelFetch(gAlbedoSpec, MScoord, i).a;
-        //    }
-        //    FragPos /= float(MSAA_Sample);
-        //    color /= float(MSAA_Sample);
-        //    normal /= float(MSAA_Sample);
-        //    ks /= float(MSAA_Sample);
-        // vec3 FragPos = texture(gPosition, TexCoords).rgb;
-        // vec3 color = pow(texture(texture_diffuse1, fs_in.TexCoords).rgb, vec3(gamma));
-        // vec3 color = texture(gAlbedoSpec, TexCoords).rgb;
-        // color = vec3(1.0, 1.0, 1.0);
-        // vec3 normal = texture(gNormal, TexCoords).rgb;
         vec3 FragPos = texelFetch(gPosition, MScoord, i).rgb;
+        float invalid = texelFetch(gPosition, MScoord, i).a;
+        vec3 skyboxColor = texture(skybox, TexCoords).rgb;
         vec3 color = texelFetch(gAlbedoSpec, MScoord, i).rgb;
         vec3 normal = texelFetch(gNormal, MScoord, i).rgb;
         float ks = texelFetch(gAlbedoSpec, MScoord, i).a;
@@ -117,7 +106,11 @@ void main()
         float specular = spec * ks * falloff;
         float shadow = ShadowCalculation(FragPos);
         vec3 lighting = shadow * (diffuse + specular) * color;
-        sumLight += lighting;
+        if (invalid == 1.0){
+            sumLight += skyboxColor;
+        }else{
+            sumLight += lighting;
+        }
     }
     // FragColor = vec4(lighting, 1.0);
     sumLight /= float(MSAA_Sample);

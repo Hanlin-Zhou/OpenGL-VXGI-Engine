@@ -369,3 +369,6 @@ FodyWeavers.xsd
 /cmake_install.cmake
 /model/Buddha/buddha.obj
 /model/Buddha/buddha.mtl
+/hdri/artist_workshop_8k.hdr
+/hdri/night.hdr
+/hdri/sunny_grassland.hdr

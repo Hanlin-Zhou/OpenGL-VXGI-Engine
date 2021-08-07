@@ -34,7 +34,7 @@ bool cube_shadow_enabled = true;
 bool debug_window = false;
 bool show_light = true;
 bool multiCam = false;
-bool peter_pan = true;
+bool peter_pan = false;
 bool gamma_correction = false;
 bool HDR = false;
 bool deferred_shading = false;
@@ -172,6 +172,7 @@ int main() {
 	cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 	cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+	glm::mat4 proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
 
 	// test texture
 	unsigned int texture1 = loadTexturePath("./data/uv.jpg");	
@@ -291,11 +292,11 @@ int main() {
 	offsets[4] = glm::vec3(0.0, 0.0, light_offset);
 	offsets[5] = glm::vec3(0.0, 0.0, -light_offset);
 
+	
 
 	Shader shadowDepth("./shader/ShadowDepth.vert", "./shader/empty.frag");
 	Shader cubeShadowDepth("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
 	Shader planeShadowShader("./shader/ShadowRender.vert", "./shader/ShadowRender.frag");
-	// Shader planeShadowSoftShader("./shader/SoftShadowRender.vert", "./shader/SoftShadowRender.frag");
 	Shader cubeShadowShader("./shader/CubeShadowRender.vert", "./shader/CubePCSS.frag");
 	Shader DebugShader("./shader/quad.vert", "./shader/debug.frag");
 	Shader showLightShader("./shader/showLight.vert", "./shader/showLight.frag");
@@ -304,6 +305,8 @@ int main() {
 	Shader SSAO_Shader("./shader/deferred_shading.vert", "./shader/SSAO.frag");
 	Shader DownSampleShader("./shader/deferred_shading.vert", "./shader/downSample.frag");
 	Shader BlurShader("./shader/deferred_shading.vert", "./shader/Blur.frag");
+	Shader HdriConvert("./shader/hdriConvert.vert", "./shader/hdriConvert.frag");
+	Shader SkyboxShader("./shader/skybox.vert", "./shader/skybox.frag");
 
 	Model MyModel("./model/sponza/sponza.obj"); 
 	// Model MyModel("./model/buddha/buddha.obj");
@@ -311,7 +314,42 @@ int main() {
 	// Model MyModel("./model/softshadowtest.obj");
 	Model LightModel("./model/light.obj");
 
+	//HDRI
+	unsigned int hdri_2DTexture = loadHDRPath("./hdri/purple_sky.hdr");
+	unsigned int hdriFBO;
+	glGenFramebuffers(1, &hdriFBO);
 
+	// attachRBOToBuffer(hdriFBO, 1024, 1024, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, 1);
+	unsigned int envCubemap = genCubeMap(1024, 1024, GL_RGB32F, GL_RGB);
+	glm::mat4 captureProjection = glm::perspective(glm::radians(fov), 1.0f, near_plane, far_plane);
+	glm::mat4 captureViews[] =
+	{
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+	   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+	};
+	glBindFramebuffer(GL_FRAMEBUFFER, hdriFBO);
+	HdriConvert.use();
+	HdriConvert.setInt("equirectangularMap", 0);
+	HdriConvert.setMat4("projection", captureProjection);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, hdri_2DTexture);
+	glViewport(0, 0, 1024, 1024); // don't forget to configure the viewport to the capture dimensions.
+	
+	unsigned int skyboxCubemapInit = initSkybox();
+	for (unsigned int i = 0; i < 6; ++i)
+	{
+		HdriConvert.setMat4("view", captureViews[i]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		renderSkybox(skyboxCubemapInit); // renders a 1x1 cube
+	}
+	unsigned int skyboxOut = bindColorBuffer(hdriFBO, INIT_WIDTH, INIT_HEIGHT, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	ImGui::CreateContext();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -334,7 +372,7 @@ int main() {
 		ImGui::NewFrame();
 		cameraRight = glm::normalize(glm::cross(glm::normalize(cameraPos - cameraTarget), cameraUp));
 		glm::mat4 view_mat = glm::lookAt(cameraPos, cameraTarget, cameraUp);
-		glm::mat4 proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
+		proj_mat = glm::perspective(glm::radians(fov), scr_aspect, near_plane, far_plane);
 		//setting
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		if (poly_mode) {
@@ -345,7 +383,7 @@ int main() {
 		}
 		glViewport(0, 0, INIT_WIDTH, INIT_HEIGHT);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		if (cube_shadow_enabled) {
@@ -416,7 +454,22 @@ int main() {
 			unsigned int DS_quad = initQuad(-1.0, 0.7);
 			renderQuad(DS_quad);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+			
+			//Skybox
+			glBindFramebuffer(GL_FRAMEBUFFER, hdriFBO);
+			glDrawBuffer(GL_COLOR_ATTACHMENT1);
+			glClearColor(0.0f, 0.6f, 0.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			SkyboxShader.use();
+			SkyboxShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+			SkyboxShader.setMat4("view", glm::value_ptr(view_mat), false);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+			glDisable(GL_CULL_FACE);
+			unsigned int skybox = initSkybox();
+			renderSkybox(skybox);
+			glEnable(GL_CULL_FACE);
+			
 			// SSAO
 			glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 			SSAO_Shader.use();
@@ -473,6 +526,9 @@ int main() {
 			glActiveTexture(GL_TEXTURE4);
 			glBindTexture(GL_TEXTURE_2D, blurOut);
 			gBufferLightPass.setInt("SSAO", 4);
+			glActiveTexture(GL_TEXTURE5);
+			glBindTexture(GL_TEXTURE_2D, skyboxOut);
+			gBufferLightPass.setInt("skybox", 5);
 			gBufferLightPass.setVec3("lightPos", glm::value_ptr(mylight.position));
 			gBufferLightPass.setVec3("viewPos", glm::value_ptr(cameraPos));
 			gBufferLightPass.setFloat("far_plane", far_plane);
@@ -556,7 +612,7 @@ int main() {
 			DebugShader.setFloat("near_plane", near_plane);
 			DebugShader.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, blurOut);
+			glBindTexture(GL_TEXTURE_2D, skyboxOut);
 			DebugShader.setInt("depthMap", 0);
 			unsigned int debugWindow = initQuad(-1.0, 0.5);
 			renderQuad(debugWindow);
