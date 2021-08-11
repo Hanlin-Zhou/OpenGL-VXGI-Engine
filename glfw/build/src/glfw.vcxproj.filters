@@ -1,93 +1,93 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\context.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\context.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\init.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\init.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\input.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\monitor.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\monitor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\vulkan.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\vulkan.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\window.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\window.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_init.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_init.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_joystick.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_joystick.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_monitor.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_monitor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_time.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_time.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_thread.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_thread.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_window.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\win32_window.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\wgl_context.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\wgl_context.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\egl_context.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\egl_context.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D:\CSC\GLFW\glfw-3.3.2\src\osmesa_context.c">
+    <ClCompile Include="C:\CSC\Ray\Project Ray\glfw\src\osmesa_context.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\internal.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\mappings.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\mappings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\build\src\glfw_config.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\build\src\glfw_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\include\GLFW\glfw3.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\include\GLFW\glfw3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\include\GLFW\glfw3native.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\include\GLFW\glfw3native.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_platform.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\win32_platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\win32_joystick.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\win32_joystick.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\wgl_context.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\wgl_context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\egl_context.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\egl_context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D:\CSC\GLFW\glfw-3.3.2\src\osmesa_context.h">
+    <ClInclude Include="C:\CSC\Ray\Project Ray\glfw\src\osmesa_context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="D:\CSC\GLFW\glfw-3.3.2\src\CMakeLists.txt" />
+    <CustomBuild Include="C:\CSC\Ray\Project Ray\glfw\src\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{76988DE5-B463-3D9C-9A33-84CCFC4F30EB}</UniqueIdentifier>
+      <UniqueIdentifier>{D8DB01AE-5E44-3D55-9A3F-E74B6A1FD2E3}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{D8F90DA8-8E8E-336E-B962-A8FE02C7D65A}</UniqueIdentifier>
+      <UniqueIdentifier>{689C7766-B71F-32F8-A330-10F95964926F}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -1,9 +1,9 @@
 
-if (NOT EXISTS "D:/CSC/GLFW/glfw-3.3.2/build/install_manifest.txt")
-  message(FATAL_ERROR "Cannot find install manifest: \"D:/CSC/GLFW/glfw-3.3.2/build/install_manifest.txt\"")
+if (NOT EXISTS "C:/CSC/Ray/Project Ray/glfw/build/install_manifest.txt")
+  message(FATAL_ERROR "Cannot find install manifest: \"C:/CSC/Ray/Project Ray/glfw/build/install_manifest.txt\"")
 endif()
 
-file(READ "D:/CSC/GLFW/glfw-3.3.2/build/install_manifest.txt" files)
+file(READ "C:/CSC/Ray/Project Ray/glfw/build/install_manifest.txt" files)
 string(REGEX REPLACE "\n" ";" files "${files}")
 
 foreach (file ${files})

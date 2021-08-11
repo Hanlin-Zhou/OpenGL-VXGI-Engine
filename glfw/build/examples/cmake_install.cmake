@@ -1,8 +1,8 @@
-# Install script for directory: C:/Repos/Ray/Project Ray/glad
+# Install script for directory: C:/CSC/Ray/Project Ray/glfw/examples
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/Ray")
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/GLFW")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
