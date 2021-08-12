@@ -22,6 +22,8 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	shadowWidth = 2048;
 	shadowHeight = 2048;
 
+	HDRIwidth = 1024;
+
 
 }
 
@@ -30,14 +32,14 @@ Renderer::~Renderer() {
 }
 
 void Renderer::run() {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	if (state == 2) {
+		updateMats();
 		Draw();
 	}
 	else if (state == 1) {
-		initializeBuffers();
-		LoadShaders();
 		loadModel();
+		LoadShaders();
+		initializeBuffers();
 		state = 2;
 	}
 	else {
@@ -45,7 +47,7 @@ void Renderer::run() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		InitRendererMenu(this);
+		RendererInitSetting(this);
 	}
 }
 
@@ -129,10 +131,9 @@ void Renderer::initializeBuffers() {
 	}
 
 	// Post Processing Buffer
-	if (SSAO) {
+	if (SSAO | SkyBox) {
 		glGenFramebuffers(1, &PostProcessingFBO);
 		glBindFramebuffer(GL_FRAMEBUFFER, PostProcessingFBO);
-		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 		PostProcessingOut = bindColorBuffer(PostProcessingFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
 	}
 
@@ -145,36 +146,7 @@ void Renderer::initializeBuffers() {
 
 	// HDRI
 	if (SkyBox) {
-		unsigned int hdri_2DTexture = loadHDRIPath(HDRIPath.c_str());
-		glGenFramebuffers(1, &HdriFBO);
-		SkyBoxCubeMap = genCubeMap(1024, 1024, GL_RGB32F, GL_RGB);
-		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0), 1.0, 0.1, 10.0);
-		glm::mat4 captureViews[] =
-		{
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-		};
-		glBindFramebuffer(GL_FRAMEBUFFER, HdriFBO);
-		Shader HdriConvert("./shader/hdriConvert.vert", "./shader/hdriConvert.frag");
-		HdriConvert.use();
-		HdriConvert.setInt("equirectangularMap", 0);
-		HdriConvert.setMat4("projection", captureProjection);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, hdri_2DTexture);
-		glViewport(0, 0, 1024, 1024);
-
-		for (unsigned int i = 0; i < 6; ++i)
-		{
-			HdriConvert.setMat4("view", captureViews[i]);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, SkyBoxCubeMap, 0);
-			glClear(GL_COLOR_BUFFER_BIT);
-			renderSkybox(SkyBoxVAO);
-		}
-		SkyBoxOut = bindColorBuffer(HdriFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+		loadHDRI(false);
 	}
 	
 	glEnable(GL_DEPTH_TEST);
@@ -227,6 +199,7 @@ void Renderer::Draw() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	// SSAO
 	if (SSAO) {
+		glViewport(0, 0, renderWidth, renderHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 		SSAO_Shader.use();
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -254,7 +227,9 @@ void Renderer::Draw() {
 
 	// Post Processing
 	if (SSAO) {
+		glViewport(0, 0, renderWidth, renderHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, PostProcessingFBO);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 		BlurShader.use();
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, ssaoOut);
@@ -266,7 +241,8 @@ void Renderer::Draw() {
 
 	// SkyBox
 	if (SkyBox) {
-		glBindFramebuffer(GL_FRAMEBUFFER, HdriFBO);
+		glViewport(0, 0, renderWidth, renderHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, PostProcessingFBO);
 		glDrawBuffer(GL_COLOR_ATTACHMENT1);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -336,9 +312,9 @@ void Renderer::Draw() {
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
 	gBufferLightPass.setInt("skybox", 5);
-	glm::vec3 temp = glm::vec3(0.0, 0.0, 0.0);
+	glm::vec3 temp_pos = cam.getPosition();
 	gBufferLightPass.setVec3("lightPos", glm::value_ptr(myLight.position));
-	gBufferLightPass.setVec3("viewPos", glm::value_ptr(camPos));
+	gBufferLightPass.setVec3("viewPos", glm::value_ptr(temp_pos));
 	gBufferLightPass.setFloat("far_plane", 80.0);
 	gBufferLightPass.setBool("HDR", HDR);
 	gBufferLightPass.setInt("MSAA_Sample", MSAASample);
@@ -350,6 +326,76 @@ void Renderer::Draw() {
 
 void Renderer::loadModel() {
 	myModel = Model(modelPath.c_str());
+}
+
+
+void Renderer::loadHDRI(bool loaded) {
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	if (loaded) {
+		unsigned int hdri_2DTexture = loadHDRIPath(HDRIPath.c_str());
+		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0), 1.0, 0.1, 10.0);
+		glm::mat4 captureViews[] =
+		{
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+		};
+		glBindFramebuffer(GL_FRAMEBUFFER, HdriFBO);
+		HdriConvert.use();
+		HdriConvert.setInt("equirectangularMap", 0);
+		HdriConvert.setMat4("projection", captureProjection);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, hdri_2DTexture);
+		glViewport(0, 0, HDRIwidth, HDRIwidth);
+
+		for (unsigned int i = 0; i < 6; ++i)
+		{
+			HdriConvert.setMat4("view", captureViews[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, SkyBoxCubeMap, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			renderSkybox(SkyBoxVAO);
+		}
+		glViewport(0, 0, renderWidth, renderHeight);
+	}
+	else {
+		unsigned int hdri_2DTexture = loadHDRIPath(HDRIPath.c_str());
+		glGenFramebuffers(1, &HdriFBO);
+		SkyBoxCubeMap = genCubeMap(HDRIwidth, HDRIwidth, GL_RGB32F, GL_RGB);
+		glm::mat4 captureProjection = glm::perspective(glm::radians(90.0), 1.0, 0.1, 10.0);
+		glm::mat4 captureViews[] =
+		{
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		   glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+		};
+		glBindFramebuffer(GL_FRAMEBUFFER, HdriFBO);
+		HdriConvert.use();
+		HdriConvert.setInt("equirectangularMap", 0);
+		HdriConvert.setMat4("projection", captureProjection);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, hdri_2DTexture);
+		glViewport(0, 0, HDRIwidth, HDRIwidth);
+
+		for (unsigned int i = 0; i < 6; ++i)
+		{
+			HdriConvert.setMat4("view", captureViews[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, SkyBoxCubeMap, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			renderSkybox(SkyBoxVAO);
+		}
+		glViewport(0, 0, renderWidth, renderHeight);
+		SkyBoxOut = bindColorBuffer(PostProcessingFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+		SkyBox = true;
+	}
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 }
 
 
@@ -384,19 +430,9 @@ void Renderer::LoadShaders() {
 	}
 
 	// HDRI
-	if (SkyBox) {
-		SkyboxShader = Shader("./shader/skybox.vert", "./shader/skybox.frag");
-	}
-}
-
-
-void Renderer::update(glm::mat4 view, glm::mat4 proj, glm::vec3 camP, unsigned int width, unsigned int height) {
-	view_mat = view;
-	proj_mat = proj;
-	camPos = camP;
-	if (state == 0) {
-		setWidthHeight(width, height);
-	}
+	
+	SkyboxShader = Shader("./shader/skybox.vert", "./shader/skybox.frag");
+	HdriConvert = Shader("./shader/hdriConvert.vert", "./shader/hdriConvert.frag");
 }
 
 
@@ -408,5 +444,9 @@ unsigned int Renderer::getState() {
 void Renderer::setWidthHeight(unsigned int width, unsigned int height) {
 	renderWidth = width;
 	renderHeight = height;
+}
 
+void Renderer::updateMats() {
+	proj_mat = cam.getProjMat();
+	view_mat = cam.getViewMat();
 }

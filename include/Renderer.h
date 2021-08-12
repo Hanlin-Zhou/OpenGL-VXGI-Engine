@@ -1,3 +1,4 @@
+#pragma once
 #include <ApplicationUtility.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
@@ -9,17 +10,15 @@
 #include <string>
 #include <Model.h>
 #include <Light.h>
+#include <Camera.h>
 
 
 class Renderer {
-public:
+private:
 	// 0 : Need to confirm setting
 	// 1 : Need to do pre-calculation
 	// 2 : Running. Need to draw next frame
 	unsigned int state;
-
-	// Camera 
-	glm::vec3 camPos;
 
 	// Light
 	Light myLight;
@@ -87,7 +86,9 @@ public:
 	unsigned int HdriFBO;
 	unsigned int SkyBoxCubeMap;
 	unsigned int SkyBoxOut;
+	unsigned int HDRIwidth;
 	Shader SkyboxShader;
+	Shader HdriConvert;
 
 	// misc
 	unsigned int quadVAO;
@@ -96,17 +97,22 @@ public:
 
 	void initializeBuffers();
 	void loadModel();
+	void loadHDRI(bool loaded);
 	void LoadShaders();
 	void Draw();
 
-// public:
+public:
+	static Camera cam;
+
 	Renderer() {};
 	Renderer(unsigned int width, unsigned int height);
 	~Renderer();
 	void run();
 	unsigned int getState();
 	
-	void update(glm::mat4 view, glm::mat4 proj, glm::vec3 camP, unsigned int width, unsigned int height);
+	void updateMats();
 	void setWidthHeight(unsigned int width, unsigned int height);
-	friend void InitRendererMenu(Renderer* renderer);
+
+	friend void RendererInitSetting(Renderer* renderer);
+	friend void RendererMenu(Renderer* renderer);
 };

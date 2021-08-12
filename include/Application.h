@@ -12,7 +12,7 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
 #include <gtx/string_cast.hpp>
-#include <Camera.h>
+#include <Renderer.h>
 
 
 class Application
@@ -20,19 +20,16 @@ class Application
 private:
 	GLFWwindow* glfw_window = nullptr;
 
-	static unsigned int windowWidth;
-	static unsigned int windowHeight;
-
-
-	static Camera currCam;
-
-	Renderer currRenderer;
+	static Renderer currRenderer;
 
 	static int leftMouseDown;
 	static int rightMouseDown;
 	static float rotateSensitivity;
 	static float walkSensitivity;
 	static bool centerRotateMode;
+
+	static bool hideUI;
+	static bool fullscreen;
 
 	static void glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void glfw_resize_callback(GLFWwindow* window, int width, int height);
@@ -42,8 +39,13 @@ private:
 	int create_window();
 	void processCamWalkInput();
 	void create_renderer();
+	void init();
+	void renderUI();
 
 public:
+	static unsigned int windowWidth;
+	static unsigned int windowHeight;
+
 	Application();
 	~Application();
 	void Run();

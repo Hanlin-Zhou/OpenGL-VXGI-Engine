@@ -1,6 +1,7 @@
 #include <Application.h>
 
-
+bool Application::hideUI = false;
+bool Application::fullscreen = false;
 bool Application::centerRotateMode = false;
 unsigned int Application::windowWidth = 1024;
 unsigned int Application::windowHeight = 1024;
@@ -8,14 +9,15 @@ int Application::leftMouseDown = 0;
 int Application::rightMouseDown = 0;
 float Application::rotateSensitivity = 0.3;
 float Application::walkSensitivity = 0.05;
-Camera Application::currCam = Camera(glm::vec3(0.0f, 0.0f, 10.0f), 
+Camera Renderer::cam = Camera(glm::vec3(0.0f, 0.0f, 10.0f),
 	glm::vec3(0.0f, 0.0f, 0.0f), 
 	(float)Application::windowWidth / (float)Application::windowHeight);
+Renderer Application::currRenderer = Renderer(windowWidth, windowHeight);
 
 
 Application::Application() {
-	currRenderer = Renderer(windowWidth, windowHeight);
 	create_window();
+	init();
 }
 
 
@@ -32,6 +34,7 @@ int Application::create_window() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	
 
 	glfw_window = glfwCreateWindow(windowWidth, windowHeight, "Hello Atelier", NULL, NULL);
 	if (glfw_window == NULL) {
@@ -63,14 +66,20 @@ int Application::create_window() {
 }
 
 
+void Application::init() {
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->AddFontFromFileTTF("./data/calibril.ttf", 16);
+}
+
+
 void Application::Run() {
 	while (!glfwWindowShouldClose(glfw_window)) {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		renderUI();
 		processCamWalkInput();
-		currRenderer.update(currCam.getViewMat(), currCam.getProjMat(), currCam.getPosition(), windowWidth, windowHeight);
 		currRenderer.run();
 
 		ImGui::Render();
@@ -81,21 +90,58 @@ void Application::Run() {
 }
 
 
+void Application::renderUI() {
+	if (currRenderer.getState() == 2 && !hideUI) {
+		glfwSetWindowAttrib(glfw_window, GLFW_RESIZABLE, GL_FALSE);
+		ImGui::BeginMainMenuBar();
+		RendererMenu(&currRenderer);
+		ImGui::EndMainMenuBar();
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// ---------------------------------------- GLFW CALLBACKS ---------------------------------------- //
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Application::glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (key == GLFW_KEY_C && action == GLFW_PRESS) {
 		centerRotateMode = !centerRotateMode;
 	}
 	else if (key == GLFW_KEY_P && action == GLFW_PRESS) {
-		std::cout << glm::to_string(currCam.getPosition()) << std::endl;
+		std::cout << glm::to_string(currRenderer.cam.getPosition()) << std::endl;
+	}
+	else if (key == GLFW_KEY_H && action == GLFW_PRESS) {
+		hideUI = !hideUI; 
+	}
+	else if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
+		static unsigned int widthWhenLastWindowed = windowWidth;
+		static unsigned int heightWhenLastWindowed = windowHeight;
+		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		if (!fullscreen) {
+			widthWhenLastWindowed = windowWidth;
+			heightWhenLastWindowed = windowHeight;
+			glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
+		}
+		else {
+			glfwSetWindowMonitor(window, NULL, 50, 50, widthWhenLastWindowed, heightWhenLastWindowed, 0);
+		}
+		fullscreen = !fullscreen;
+	}
+	else if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, true);
 	}
 }
 
 
 void Application::glfw_resize_callback(GLFWwindow* window, int new_width, int new_height) {
-	glViewport(0, 0, new_width, new_height);
-	windowWidth = new_width;
-	windowHeight = new_height;
-	currCam.aspect = (float)new_width / (float)new_height;
+	if (currRenderer.getState() == 0) {
+		glViewport(0, 0, new_width, new_height);
+		windowWidth = new_width;
+		windowHeight = new_height;
+		currRenderer.cam.aspect = (float)new_width / (float)new_height;
+		currRenderer.setWidthHeight(new_width, new_height);
+	}
 }
 
 
@@ -127,7 +173,7 @@ void Application::glfw_CursorPosCallback(GLFWwindow* window, double xpos, double
 			glm::mat4 rot_mat = glm::mat4(1.0f);
 			float hor_r = -glm::radians(rotateSensitivity * (xpos - CursorLastX) / windowWidth) * 500.0;
 			float ver_r = glm::radians(rotateSensitivity * (ypos - CursorLastY) / windowHeight) * 400.0;
-			currCam.rotate(hor_r, ver_r);
+			currRenderer.cam.rotate(hor_r, ver_r);
 		}
 		else {
 			// TODO
@@ -140,29 +186,26 @@ void Application::glfw_CursorPosCallback(GLFWwindow* window, double xpos, double
 
 void Application::processCamWalkInput() {
 	if (currRenderer.getState() == 2) {
-		glm::vec3 front = currCam.getLookingDirection();
-		glm::vec3 right = currCam.getRightHandDirection();
-		glm::vec3 up = currCam.getUpDirection();
-		if (glfwGetKey(glfw_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-			glfwSetWindowShouldClose(glfw_window, true);
-		}
+		glm::vec3 front = currRenderer.cam.getLookingDirection();
+		glm::vec3 right = currRenderer.cam.getRightHandDirection();
+		glm::vec3 up = currRenderer.cam.getUpDirection();
 		if (glfwGetKey(glfw_window, GLFW_KEY_W) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * front);
+			currRenderer.cam.translate(walkSensitivity * front);
 		}
 		else if (glfwGetKey(glfw_window, GLFW_KEY_S) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * -front);
+			currRenderer.cam.translate(walkSensitivity * -front);
 		}
 		if (glfwGetKey(glfw_window, GLFW_KEY_A) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * right);
+			currRenderer.cam.translate(walkSensitivity * right);
 		}
 		else if (glfwGetKey(glfw_window, GLFW_KEY_D) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * -right);
+			currRenderer.cam.translate(walkSensitivity * -right);
 		}
 		if (glfwGetKey(glfw_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * up);
+			currRenderer.cam.translate(walkSensitivity * up);
 		}
 		else if (glfwGetKey(glfw_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-			currCam.translate(walkSensitivity * -up);
+			currRenderer.cam.translate(walkSensitivity * -up);
 		}
 	}
 }

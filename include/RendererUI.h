@@ -1,4 +1,7 @@
+#pragma once
 #include "imgui.h"
 #include <Renderer.h>
 
-void InitRendererMenu(Renderer* renderer);
+void RendererInitSetting(Renderer* renderer);
+
+void RendererMenu(Renderer* renderer);
