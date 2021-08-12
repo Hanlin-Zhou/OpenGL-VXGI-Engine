@@ -79,10 +79,6 @@ float ShadowCalculation(vec3 fragPos)
 void main()
 {           
     float gamma = 2.2;
-    //    vec3 FragPos = vec3(0.0);
-    //    vec3 color = vec3(0.0);
-    //    vec3 normal = vec3(0.0);
-    //    float ks = 0.0;
     ivec2 MScoord = ivec2(TexCoords * textureSize(gPosition));
     vec3 sumLight = vec3(0.0);
     int count = 0;
@@ -99,7 +95,6 @@ void main()
         float diff = max(dot(lightDir, normal), 0.0);
         float diffuse = diff * falloff;
         vec3 viewDir = normalize(viewPos - FragPos);
-        // float ks = texture(gAlbedoSpec, TexCoords).a;
         float spec;
         vec3 halfwayDir = normalize(lightDir + viewDir);  
         spec = pow(max(dot(normal, halfwayDir), 0.0), 10.0);
