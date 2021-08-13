@@ -258,19 +258,20 @@ void Renderer::Draw() {
 
 	// PCSS
 	if (PCSS) {
+		glm::vec3 lightpos = myLight.getPos();
 		std::vector<glm::mat4> shadowTransforms;
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj * glm::lookAt(myLight.position, myLight.position + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 		
 		glViewport(0, 0, shadowWidth, shadowHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, DepthCubeFBO);
 		glClear(GL_DEPTH_BUFFER_BIT);
 		PCSSDepthShader.use();
-		PCSSDepthShader.setVec3("lightPos", glm::value_ptr(myLight.position));
+		PCSSDepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
 		for (unsigned int i = 0; i < 6; ++i)
 			PCSSDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 		PCSSDepthShader.setFloat("far_plane", 80.0);
@@ -312,9 +313,10 @@ void Renderer::Draw() {
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
 	gBufferLightPass.setInt("skybox", 5);
-	glm::vec3 temp_pos = cam.getPosition();
-	gBufferLightPass.setVec3("lightPos", glm::value_ptr(myLight.position));
-	gBufferLightPass.setVec3("viewPos", glm::value_ptr(temp_pos));
+	glm::vec3 temp_campos = cam.getPosition();
+	glm::vec3 temp_lightpos = myLight.getPos();
+	gBufferLightPass.setVec3("lightPos", glm::value_ptr(temp_lightpos));
+	gBufferLightPass.setVec3("viewPos", glm::value_ptr(temp_campos));
 	gBufferLightPass.setFloat("far_plane", 80.0);
 	gBufferLightPass.setBool("HDR", HDR);
 	gBufferLightPass.setInt("MSAA_Sample", MSAASample);

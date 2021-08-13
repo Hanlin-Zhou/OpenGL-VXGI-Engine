@@ -95,6 +95,7 @@ void Application::renderUI() {
 		glfwSetWindowAttrib(glfw_window, GLFW_RESIZABLE, GL_FALSE);
 		ImGui::BeginMainMenuBar();
 		RendererMenu(&currRenderer);
+		LightMenu(&currRenderer.myLight);
 		ImGui::EndMainMenuBar();
 	}
 }

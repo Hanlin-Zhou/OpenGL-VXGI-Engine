@@ -20,9 +20,6 @@ private:
 	// 2 : Running. Need to draw next frame
 	unsigned int state;
 
-	// Light
-	Light myLight;
-
 	// settings
 	bool MSAA;
 	unsigned int MSAASample;
@@ -103,6 +100,7 @@ private:
 
 public:
 	static Camera cam;
+	Light myLight;
 
 	Renderer() {};
 	Renderer(unsigned int width, unsigned int height);
