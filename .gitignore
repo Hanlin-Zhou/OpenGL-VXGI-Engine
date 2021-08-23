@@ -375,3 +375,7 @@ FodyWeavers.xsd
 /build
 /Main - Copy.cpp
 /TODO.txt
+/shader/VoxelVisFace.frag
+/shader/VoxelVisFace.vert
+/shader/VoxelVisTrace.frag
+/shader/VoxelVisTrace.vert

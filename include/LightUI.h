@@ -3,4 +3,4 @@
 #include "imgui.h"
 #include <gtc/type_ptr.hpp>
 
-void LightMenu(Light* mylight);
+void LightMenu(Light &mylight);

@@ -28,11 +28,15 @@ private:
 	bool SSAO;
 	bool HDR;
 	bool SkyBox;
-	bool Debug;
+	bool ShowDebug;
+	bool ShowTexture;
+	bool ShowNormal;
 	unsigned int renderWidth;
 	unsigned int renderHeight;
 	unsigned int shadowWidth;
 	unsigned int shadowHeight;
+
+	bool SVOGI;
 
 	Model myModel;
 
@@ -50,8 +54,10 @@ private:
 	unsigned int gPosition;
 	unsigned int gNormal;
 	unsigned int gAlbedoSpec;
+	unsigned int gShadow;
 	Shader gBufferGeoPass;
 	Shader gBufferLightPass;
+	Shader gBufferCombine;
 
 	// Down sampled G Buffer
 	unsigned int ds_gBuffer;
@@ -87,6 +93,27 @@ private:
 	Shader SkyboxShader;
 	Shader HdriConvert;
 
+	// SVOGI
+	unsigned int SVOGIFBO;
+	unsigned int SVOGI3DTEX;
+	float MaxCoord;
+	int VoxelSize;
+	Shader VoxelizeShader;
+
+	// SVOGI Visualizer
+	unsigned int VoxelVisFBO;
+	unsigned int VoxelVisFrontFace;
+	unsigned int VoxelVisBackFace;
+	unsigned int VoxelVisOut;
+
+	Shader VoxelVisFaceShader;
+	Shader VoxelVisTraceShader;
+	
+
+	// Debug
+	unsigned int DebugOut;
+	Shader DebugShader;
+
 	// misc
 	unsigned int quadVAO;
 	unsigned int DEBUGquadVAO;
@@ -111,6 +138,8 @@ public:
 	void updateMats();
 	void setWidthHeight(unsigned int width, unsigned int height);
 
-	friend void RendererInitSetting(Renderer* renderer);
-	friend void RendererMenu(Renderer* renderer);
+	friend void RendererInitSetting(Renderer &renderer);
+	friend void LoadMenu(Renderer &renderer);
+	friend void RendererMenu(Renderer &renderer);
+	friend void DebugMenu(Renderer &renderer);
 };

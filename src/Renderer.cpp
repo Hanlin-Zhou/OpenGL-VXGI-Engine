@@ -4,11 +4,6 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	state = 0;
 	myLight = Light();
 
-	//
-	renderWidth = width;
-	renderHeight = height; 
-
-	//
 	// modelPath = "./model/sponza/sponza.obj";
 	modelPath = "./model/opengl_render_testing.obj";
 	HDRIPath = "./hdri/purple_sky.hdr";
@@ -16,12 +11,21 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	MSAA = true;
 	MSAASample = 4;
 	PCSS = true;
+	PeterPan = false;
 	SSAO = true;
+	HDR = false;
 	SkyBox = true;
-	Debug = false;
+	ShowDebug = false;
+	ShowTexture = true;
+	ShowNormal = true;
+	renderWidth = width;
+	renderHeight = height;
 	shadowWidth = 2048;
 	shadowHeight = 2048;
 
+	SVOGI = false;
+
+	int VoxelSize = 256;
 	HDRIwidth = 1024;
 
 
@@ -47,7 +51,7 @@ void Renderer::run() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		RendererInitSetting(this);
+		RendererInitSetting(*this);
 	}
 }
 
@@ -67,14 +71,14 @@ void Renderer::initializeBuffers() {
 	gPosition = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, MSAASample, GL_LINEAR);
 	gNormal = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, MSAASample, GL_LINEAR);
 	gAlbedoSpec = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, MSAASample, GL_LINEAR);
+	// gShadow = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_R32F, MSAASample, GL_LINEAR);
 	attachRBOToBuffer(gBuffer, renderWidth, renderHeight, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, MSAASample);
 	// Down sampled G Buffer
+	glGenFramebuffers(1, &ds_gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, ds_gBuffer);
+	unsigned int ds_attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+	glDrawBuffers(4, ds_attachments);
 	if (MSAA) {
-		glGenFramebuffers(1, &ds_gBuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, ds_gBuffer);
-		unsigned int ds_attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-		glDrawBuffers(4, ds_attachments);
-
 		ds_gPosition = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
 		ds_gNormal = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
 		ds_gAlbedoSpec = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
@@ -84,7 +88,7 @@ void Renderer::initializeBuffers() {
 		ds_gNormal = gNormal;
 		ds_gAlbedoSpec = gAlbedoSpec;
 	}
-	ds_gViewPos = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA32F, 1, GL_LINEAR);
+	
 
 	// SSAO
 	if (SSAO) {
@@ -128,6 +132,7 @@ void Renderer::initializeBuffers() {
 		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 		ssaoOut = bindColorBuffer(ssaoFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RED, 1, GL_LINEAR);
+		ds_gViewPos = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA32F, 1, GL_LINEAR);
 	}
 
 	// Post Processing Buffer
@@ -148,17 +153,48 @@ void Renderer::initializeBuffers() {
 	if (SkyBox) {
 		loadHDRI(false);
 	}
+
+	if (SVOGI) {
+		glGenFramebuffers(1, &VoxelVisFBO);
+		VoxelVisFrontFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
+		VoxelVisBackFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+		VoxelVisOut = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
+
+		glGenFramebuffers(1, &SVOGIFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+		glGenTextures(1, &SVOGI3DTEX);
+		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_3D, SVOGI3DTEX, 0, 0);
+
+		MaxCoord = myModel.max_pos;
+		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, MaxCoord);
+		glm::mat4 ProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		VoxelizeShader.use();
+		VoxelizeShader.setMat4("ProjectMat", ProjectMat);
+		VoxelizeShader.setInt("VoxelSize", VoxelSize);
+		glActiveTexture(GL_TEXTURE0);
+		// glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glViewport(0, 0, VoxelSize, VoxelSize);
+		myModel.Draw(VoxelizeShader, false, false);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
 	
+}
+
+
+void Renderer::Draw() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LESS);
-}
-
-
-void Renderer::Draw() {
 	glViewport(0, 0, renderWidth, renderHeight);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -171,9 +207,10 @@ void Renderer::Draw() {
 	gBufferGeoPass.use();
 	gBufferGeoPass.setMat4("proj", glm::value_ptr(proj_mat), false);
 	gBufferGeoPass.setMat4("view", glm::value_ptr(view_mat), false);
-	myModel.Draw(gBufferGeoPass);
+	myModel.Draw(gBufferGeoPass, ShowTexture, ShowNormal);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
 	// Down sampled G Buffer
 	if (MSAA) {
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ds_gBuffer);
@@ -188,17 +225,21 @@ void Renderer::Draw() {
 		glReadBuffer(GL_COLOR_ATTACHMENT2);
 		glBlitFramebuffer(0, 0, renderWidth, renderHeight, 0, 0, renderWidth, renderHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	}
-	// viewpos
-	DownSampleShader.use();
-	glDrawBuffer(GL_COLOR_ATTACHMENT3);
-	DownSampleShader.setMat4("view", glm::value_ptr(view_mat), false);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, ds_gPosition);
-	DownSampleShader.setInt("ds_gPosition", 0);
-	renderQuad(quadVAO);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
 	// SSAO
 	if (SSAO) {
+		// viewpos
+		DownSampleShader.use();
+		glBindFramebuffer(GL_FRAMEBUFFER, ds_gBuffer);
+		glDrawBuffer(GL_COLOR_ATTACHMENT3);
+		DownSampleShader.setMat4("view", glm::value_ptr(view_mat), false);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, ds_gPosition);
+		DownSampleShader.setInt("ds_gPosition", 0);
+		renderQuad(quadVAO);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// SSAO
 		glViewport(0, 0, renderWidth, renderHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 		SSAO_Shader.use();
@@ -235,7 +276,9 @@ void Renderer::Draw() {
 		glBindTexture(GL_TEXTURE_2D, ssaoOut);
 		BlurShader.setInt("ssaoInput", 0);
 		BlurShader.setInt("sampleSize", 2);
+		glEnable(GL_DEPTH_TEST);
 		renderQuad(quadVAO);
+		glDisable(GL_DEPTH_TEST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -251,9 +294,7 @@ void Renderer::Draw() {
 		SkyboxShader.setMat4("view", glm::value_ptr(view_mat), false);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, SkyBoxCubeMap);
-		glDisable(GL_CULL_FACE);
 		renderSkybox(SkyBoxVAO);
-		glEnable(GL_CULL_FACE);
 	}
 
 	// PCSS
@@ -269,60 +310,151 @@ void Renderer::Draw() {
 		
 		glViewport(0, 0, shadowWidth, shadowHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, DepthCubeFBO);
-		glClear(GL_DEPTH_BUFFER_BIT);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		PCSSDepthShader.use();
 		PCSSDepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
 		for (unsigned int i = 0; i < 6; ++i)
 			PCSSDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 		PCSSDepthShader.setFloat("far_plane", 80.0);
-		myModel.Draw(PCSSDepthShader);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		if (PeterPan) {
+			glCullFace(GL_FRONT);
+			myModel.Draw(PCSSDepthShader, true, true);
+			glCullFace(GL_BACK);
+		}
+		else {
+			myModel.Draw(PCSSDepthShader, true, true);
+		}
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+	}
+
+	if (SVOGI) {
+		glViewport(0, 0, renderWidth, renderHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
+		VoxelVisFaceShader.use();
+		VoxelVisFaceShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+		VoxelVisFaceShader.setMat4("view", glm::value_ptr(view_mat), false);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glCullFace(GL_BACK);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		renderSkybox(SkyBoxVAO);
+
+		glDrawBuffer(GL_COLOR_ATTACHMENT1);
+		glCullFace(GL_FRONT);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		renderSkybox(SkyBoxVAO);
+
+		glCullFace(GL_BACK);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+
+		VoxelVisTraceShader.use();
+		glDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, VoxelVisBackFace);
+		VoxelVisTraceShader.setInt("textureBack", 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, VoxelVisFrontFace);
+		VoxelVisTraceShader.setInt("textureFront", 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
+		glm::vec3 temp_campos = cam.getPosition();
+		VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));
+		renderQuad(quadVAO);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	// G Buffer Lighting Pass
-	glViewport(0, 0, renderWidth, renderHeight);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	/*glViewport(0, 0, renderWidth, renderHeight);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	glDrawBuffer(GL_COLOR_ATTACHMENT3);
 	gBufferLightPass.use();
 	if (MSAA) {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gPosition);
 		gBufferLightPass.setInt("gPosition", 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gNormal);
-		gBufferLightPass.setInt("gNormal", 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gAlbedoSpec);
-		gBufferLightPass.setInt("gAlbedoSpec", 2);
 	}
 	else {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, gPosition);
 		gBufferLightPass.setInt("gPosition", 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, gNormal);
-		gBufferLightPass.setInt("gNormal", 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-		gBufferLightPass.setInt("gAlbedoSpec", 2);
 	}
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
 	gBufferLightPass.setInt("depthCubemap", 3);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, PostProcessingOut);
-	gBufferLightPass.setInt("SSAO", 4);
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
-	gBufferLightPass.setInt("skybox", 5);
-	glm::vec3 temp_campos = cam.getPosition();
 	glm::vec3 temp_lightpos = myLight.getPos();
 	gBufferLightPass.setVec3("lightPos", glm::value_ptr(temp_lightpos));
-	gBufferLightPass.setVec3("viewPos", glm::value_ptr(temp_campos));
 	gBufferLightPass.setFloat("far_plane", 80.0);
-	gBufferLightPass.setBool("HDR", HDR);
 	gBufferLightPass.setInt("MSAA_Sample", MSAASample);
-	glEnable(GL_FRAMEBUFFER_SRGB);
-	renderQuad(quadVAO);
-	glDisable(GL_FRAMEBUFFER_SRGB);
+	renderQuad(quadVAO);*/
+
+	// Combine
+	if (PCSS)
+	{
+		glViewport(0, 0, renderWidth, renderHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		gBufferLightPass.use();
+		if (MSAA) {
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gPosition);
+			gBufferLightPass.setInt("gPosition", 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gNormal);
+			gBufferLightPass.setInt("gNormal", 1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gAlbedoSpec);
+			gBufferLightPass.setInt("gAlbedoSpec", 2);
+		}
+		else {
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, gPosition);
+			gBufferLightPass.setInt("gPosition", 0);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, gNormal);
+			gBufferLightPass.setInt("gNormal", 1);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+			gBufferLightPass.setInt("gAlbedoSpec", 2);
+		}
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
+		gBufferLightPass.setInt("depthCubemap", 3);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, PostProcessingOut);
+		gBufferLightPass.setInt("SSAO", 4);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
+		gBufferLightPass.setInt("skybox", 5);
+		glm::vec3 temp_campos = cam.getPosition();
+		glm::vec3 temp_lightpos = myLight.getPos();
+		gBufferLightPass.setVec3("lightPos", glm::value_ptr(temp_lightpos));
+		gBufferLightPass.setVec3("viewPos", glm::value_ptr(temp_campos));
+		gBufferLightPass.setFloat("far_plane", 80.0);
+		gBufferLightPass.setBool("HDR", HDR);
+		gBufferLightPass.setInt("MSAA_Sample", MSAASample);
+		glEnable(GL_FRAMEBUFFER_SRGB);
+		renderQuad(quadVAO);
+		glDisable(GL_FRAMEBUFFER_SRGB);
+	}
+
+	// Debug
+
+	if (ShowDebug) {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		DebugShader.use();
+		DebugShader.setInt("debug", 0);
+		DebugShader.setFloat("near_plane", cam.near_plane);
+		DebugShader.setFloat("far_plane", cam.far_plane);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, VoxelVisOut);
+		renderQuad(DEBUGquadVAO);
+	}
 }
 
 
@@ -404,12 +536,8 @@ void Renderer::loadHDRI(bool loaded) {
 void Renderer::LoadShaders() {
 	// G Buffer
 	gBufferGeoPass = Shader("./shader/gBuffer.vert", "./shader/gBuffer.frag");
-	if (MSAA) {
-		gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/MSgCubePCSS.frag");
-	}
-	else {
-		gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/CubePCSS.frag");
-	}
+	//gBufferCombine = Shader("./shader/gBuffer.vert", "./shader/Combine.frag");
+	
 
 	// Down Sample
 	if (MSAA) {
@@ -429,12 +557,26 @@ void Renderer::LoadShaders() {
 	// PCSS
 	if (PCSS) {
 		PCSSDepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
+		if (MSAA) {
+			gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/MSgCubePCSS.frag");
+		}
+		else {
+			gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/CubePCSS.frag");
+		}
+	}
+	if (SVOGI) {
+		VoxelizeShader = Shader("./shader/voxelize.vert", "./shader/voxelize.frag", "./shader/voxelize.geom");
+		VoxelVisFaceShader = Shader("./shader/VoxelVisFace.vert", "./shader/VoxelVisFace.frag");
+		VoxelVisTraceShader = Shader("./shader/VoxelVisTrace.vert", "./shader/VoxelVisTrace.frag");
 	}
 
 	// HDRI
 	
 	SkyboxShader = Shader("./shader/skybox.vert", "./shader/skybox.frag");
 	HdriConvert = Shader("./shader/hdriConvert.vert", "./shader/hdriConvert.frag");
+
+	// Debug
+	DebugShader = Shader("./shader/quad.vert", "./shader/debug.frag");
 }
 
 

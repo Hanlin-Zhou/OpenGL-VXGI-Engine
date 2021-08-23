@@ -5,7 +5,7 @@
 
 class Camera 
 {
-private:
+public:
 	glm::vec3 camPosition;
 	glm::vec3 camUp;
 	glm::vec3 camLookAt;
@@ -14,7 +14,7 @@ private:
 	float far_plane ;
 	float fov;
 	
-public:
+
 	float aspect;
 
 	Camera(glm::vec3 position, glm::vec3 lookat, float in_aspect);

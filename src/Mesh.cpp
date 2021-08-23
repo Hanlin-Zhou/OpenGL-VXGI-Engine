@@ -39,7 +39,7 @@ void Mesh::setupMesh() {
 }
 
 
-void Mesh::Draw(Shader& shader) {
+void Mesh::Draw(Shader& shader, bool showTex, bool showNorm) {
 	unsigned int diffuseNr = 1;
 	unsigned int specularNr = 1;
 	unsigned int normalNr = 1;
@@ -73,15 +73,15 @@ void Mesh::Draw(Shader& shader) {
 		// retrieve texture number (the N in diffuse_textureN)
 		std::string number;
 		std::string name = textures[i].type;
-		if (name == "texture_diffuse") {
+		if (name == "texture_diffuse" && showTex) {
 			glActiveTexture(GL_TEXTURE10);
 			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
-		else if (name == "texture_specular") {
+		else if (name == "texture_specular" && showTex) {
 			glActiveTexture(GL_TEXTURE11);
 			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
-		else if (name == "texture_normal") {
+		else if (name == "texture_normal" && showNorm) {
 			glActiveTexture(GL_TEXTURE12);
 			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}

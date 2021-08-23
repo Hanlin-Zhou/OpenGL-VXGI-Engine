@@ -1,9 +1,9 @@
 #include <Model.h>
 #include "stb_image.h"
 
-void Model::Draw(Shader& shader) {
+void Model::Draw(Shader& shader, bool showTex, bool showNorm) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		meshes[i].Draw(shader);
+		meshes[i].Draw(shader, showTex, showNorm);
 	}
 }
 
@@ -212,4 +212,9 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 	}
 
 	return textureID;
+}
+
+void Model::updateMaxPos(glm::vec3 pos) {
+	float max_comp = glm::compMax(glm::abs(pos));
+	max_pos = fmax(max_pos, max_comp);
 }

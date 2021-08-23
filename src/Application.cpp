@@ -31,8 +31,8 @@ Application::~Application() {
 
 int Application::create_window() {
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	
 
@@ -94,8 +94,10 @@ void Application::renderUI() {
 	if (currRenderer.getState() == 2 && !hideUI) {
 		glfwSetWindowAttrib(glfw_window, GLFW_RESIZABLE, GL_FALSE);
 		ImGui::BeginMainMenuBar();
-		RendererMenu(&currRenderer);
-		LightMenu(&currRenderer.myLight);
+		LoadMenu(currRenderer);
+		RendererMenu(currRenderer);
+		LightMenu(currRenderer.myLight);
+		DebugMenu(currRenderer);
 		ImGui::EndMainMenuBar();
 	}
 }
