@@ -50,6 +50,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		pos_vector.y = mesh->mVertices[i].y;
 		pos_vector.z = mesh->mVertices[i].z;
 		vertex.Position = pos_vector;
+		updateMaxPos(pos_vector);
 
 		glm::vec3 nor_vector;
 		nor_vector.x = mesh->mNormals[i].x;

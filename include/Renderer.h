@@ -29,6 +29,7 @@ private:
 	bool HDR;
 	bool SkyBox;
 	bool ShowDebug;
+	bool GLDebugOutput;
 	bool ShowTexture;
 	bool ShowNormal;
 	unsigned int renderWidth;

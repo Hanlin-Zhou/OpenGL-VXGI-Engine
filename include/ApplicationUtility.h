@@ -33,3 +33,5 @@ unsigned int bindColorBuffer(unsigned int FBO, int width, int height, GLenum att
 unsigned int initSkybox();
 
 void renderSkybox(unsigned int VAO);
+
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);

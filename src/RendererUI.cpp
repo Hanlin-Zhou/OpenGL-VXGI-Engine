@@ -20,6 +20,7 @@ void RendererInitSetting(Renderer &renderer) {
 	renderer.SVOGI = !renderer.PCSS;
 	ImGui::Checkbox("SSAO", &renderer.SSAO);
 	ImGui::Checkbox("SkyBox", &renderer.SkyBox);
+	ImGui::Checkbox("OpenGl Debug Output", &renderer.GLDebugOutput);
 	// Model
 	if (ImGui::Button("Load OBJ Model")) {
 		tinyfd_assumeGraphicDisplay = 1;

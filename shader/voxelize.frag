@@ -1,7 +1,8 @@
 #version 430 core
 
-layout(rgba8) uniform image3D texture3D;
+layout(binding = 0, rgba8) writeonly uniform image3D tex3D;
 
+uniform sampler2D texture_diffuse1;
 
 in GS_OUT{
     vec3 geoVoxelPos;
@@ -12,6 +13,6 @@ in GS_OUT{
 
 void main()
 {
-    
-    imageStore(texture3D, ivec3(gs_out.geoVoxelPos), vec4(1.0));
+    vec3 color = texture(texture_diffuse1, gs_out.geoTexCoords).rgb;
+    imageStore(tex3D, ivec3(gs_out.geoVoxelPos), vec4(color, 1.0));
 }  

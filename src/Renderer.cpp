@@ -1,5 +1,6 @@
 #include <Renderer.h>
 
+
 Renderer::Renderer(unsigned int width, unsigned int height) {
 	state = 0;
 	myLight = Light();
@@ -16,6 +17,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	HDR = false;
 	SkyBox = true;
 	ShowDebug = false;
+	GLDebugOutput = false;
 	ShowTexture = true;
 	ShowNormal = true;
 	renderWidth = width;
@@ -25,7 +27,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 
 	SVOGI = false;
 
-	int VoxelSize = 256;
+	VoxelSize = 256;
 	HDRIwidth = 1024;
 
 
@@ -56,6 +58,11 @@ void Renderer::run() {
 }
 
 void Renderer::initializeBuffers() {
+	if (GLDebugOutput) {
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		glDebugMessageCallback(MessageCallback, 0);
+	}
 	// prim
 	quadVAO = initQuad(-1.0, 0.7);
 	DEBUGquadVAO = initQuad(-1.0, 0.5);
@@ -160,27 +167,37 @@ void Renderer::initializeBuffers() {
 		VoxelVisBackFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
 		VoxelVisOut = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
 
-		glGenFramebuffers(1, &SVOGIFBO);
-		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+		// glGenFramebuffers(1, &SVOGIFBO);
+		// glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
 		glGenTextures(1, &SVOGI3DTEX);
 		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
-		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// float* data = new float[VoxelSize * VoxelSize * VoxelSize];
+		// memset(data, 0, sizeof(float) * VoxelSize * VoxelSize * VoxelSize);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_3D, SVOGI3DTEX, 0, 0);
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 
-		MaxCoord = myModel.max_pos;
-		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, MaxCoord);
+
+		MaxCoord = myModel.max_pos + 1.0;
+		std::cout << "max coord = " << MaxCoord << std::endl;
+		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
 		glm::mat4 ProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		VoxelizeShader.use();
 		VoxelizeShader.setMat4("ProjectMat", ProjectMat);
 		VoxelizeShader.setInt("VoxelSize", VoxelSize);
-		glActiveTexture(GL_TEXTURE0);
-		// glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA);
+		// glActiveTexture(GL_TEXTURE0);
+		// glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
+		VoxelizeShader.setInt("tex3D", 0);
+		glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glViewport(0, 0, VoxelSize, VoxelSize);
-		myModel.Draw(VoxelizeShader, false, false);
+		myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -189,8 +206,8 @@ void Renderer::initializeBuffers() {
 
 
 void Renderer::Draw() {
-	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 	glDepthMask(GL_TRUE);
@@ -363,6 +380,7 @@ void Renderer::Draw() {
 		VoxelVisTraceShader.setInt("textureFront", 1);
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
+		VoxelVisTraceShader.setInt("tex3D", 2);
 		glm::vec3 temp_campos = cam.getPosition();
 		VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));
 		renderQuad(quadVAO);
@@ -594,3 +612,5 @@ void Renderer::updateMats() {
 	proj_mat = cam.getProjMat();
 	view_mat = cam.getViewMat();
 }
+
+
