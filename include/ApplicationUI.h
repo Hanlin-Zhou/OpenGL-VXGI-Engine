@@ -1,3 +1,6 @@
+#pragma once
 #include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include <Application.h>
+
+
+void ControlMenu(Application &app);

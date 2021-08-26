@@ -20,6 +20,7 @@ public:
 	Camera(glm::vec3 position, glm::vec3 lookat, float in_aspect);
 	void translate(glm::vec3 offset);
 	void rotate(float horizontalRad, float verticalRad);
+	void turn(float horizontalRad, float verticalRad);
 	void reset();
 	glm::vec3 getLookingDirection();
 	glm::vec3 getRightHandDirection();

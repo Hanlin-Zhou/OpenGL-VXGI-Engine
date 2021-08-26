@@ -27,6 +27,16 @@ void Camera::rotate(float horizontalRad, float verticalRad) {
 }
 
 
+void Camera::turn(float horizontalRad, float verticalRad) {
+	glm::vec4 dir = glm::vec4(camLookAt.x - camPosition.x, camLookAt.y - camPosition.y, camLookAt.z - camPosition.z, 1.0);
+	glm::mat4 rot_mat = glm::mat4(1.0f);
+	rot_mat = glm::rotate(rot_mat, horizontalRad, camUp);
+	rot_mat = glm::rotate(rot_mat, verticalRad, camRight);
+	dir = rot_mat * dir;
+	camLookAt = camPosition + glm::vec3(dir.x, dir.y, dir.z);
+}
+
+
 void Camera::translate(glm::vec3 offset) {
 	camPosition += offset;
 	camLookAt += offset;

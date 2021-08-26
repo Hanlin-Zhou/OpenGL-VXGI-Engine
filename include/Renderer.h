@@ -24,6 +24,7 @@ private:
 	bool MSAA;
 	unsigned int MSAASample;
 	bool PCSS;
+	bool ShadowBluring;
 	bool PeterPan;
 	bool SSAO;
 	bool HDR;
@@ -55,10 +56,15 @@ private:
 	unsigned int gPosition;
 	unsigned int gNormal;
 	unsigned int gAlbedoSpec;
-	unsigned int gShadow;
 	Shader gBufferGeoPass;
 	Shader gBufferLightPass;
 	Shader gBufferCombine;
+
+	// Shadow
+	unsigned int ShadowBuffer;
+	unsigned int ShadowRaw;
+	unsigned int ShadowBlur;
+	unsigned int ShadowOut;
 
 	// Down sampled G Buffer
 	unsigned int ds_gBuffer;

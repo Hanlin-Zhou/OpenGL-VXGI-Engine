@@ -2,12 +2,11 @@
 
 bool Application::hideUI = false;
 bool Application::fullscreen = false;
-bool Application::centerRotateMode = false;
 unsigned int Application::windowWidth = 1024;
 unsigned int Application::windowHeight = 1024;
 int Application::leftMouseDown = 0;
 int Application::rightMouseDown = 0;
-float Application::rotateSensitivity = 0.3;
+float Application::rotateSensitivity = 0.6;
 float Application::walkSensitivity = 0.05;
 Camera Renderer::cam = Camera(glm::vec3(0.0f, 0.0f, 10.0f),
 	glm::vec3(0.0f, 0.0f, 0.0f), 
@@ -97,6 +96,7 @@ void Application::renderUI() {
 		LoadMenu(currRenderer);
 		RendererMenu(currRenderer);
 		LightMenu(currRenderer.myLight);
+		ControlMenu(*this);
 		DebugMenu(currRenderer);
 		ImGui::EndMainMenuBar();
 	}
@@ -108,10 +108,7 @@ void Application::renderUI() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Application::glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	if (key == GLFW_KEY_C && action == GLFW_PRESS) {
-		centerRotateMode = !centerRotateMode;
-	}
-	else if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+	if (key == GLFW_KEY_P && action == GLFW_PRESS) {
 		std::cout << glm::to_string(currRenderer.cam.getPosition()) << std::endl;
 	}
 	else if (key == GLFW_KEY_H && action == GLFW_PRESS) {
@@ -172,15 +169,14 @@ void Application::glfw_CursorPosCallback(GLFWwindow* window, double xpos, double
 	static double CursorLastY = ypos;
 	ImGuiIO& io = ImGui::GetIO();
 	if (leftMouseDown && !io.WantCaptureMouse) {
-		if (!centerRotateMode) {
-			glm::mat4 rot_mat = glm::mat4(1.0f);
-			float hor_r = -glm::radians(rotateSensitivity * (xpos - CursorLastX) / windowWidth) * 500.0;
-			float ver_r = glm::radians(rotateSensitivity * (ypos - CursorLastY) / windowHeight) * 400.0;
-			currRenderer.cam.rotate(hor_r, ver_r);
-		}
-		else {
-			// TODO
-		}
+		float hor_r = -glm::radians(rotateSensitivity * (xpos - CursorLastX) / windowWidth) * 250.0;
+		float ver_r = glm::radians(rotateSensitivity * (ypos - CursorLastY) / windowHeight) * 200.0;
+		currRenderer.cam.rotate(hor_r, ver_r);
+	}
+	else if (rightMouseDown && !io.WantCaptureMouse) {
+		float hor_r = -glm::radians(rotateSensitivity * (xpos - CursorLastX) / windowWidth) * 250.0;
+		float ver_r = glm::radians(rotateSensitivity * (ypos - CursorLastY) / windowHeight) * 200.0;
+		currRenderer.cam.turn(hor_r, ver_r);
 	}
 	CursorLastX = xpos;
 	CursorLastY = ypos;

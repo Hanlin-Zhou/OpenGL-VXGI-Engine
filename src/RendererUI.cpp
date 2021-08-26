@@ -87,6 +87,7 @@ void RendererMenu(Renderer &renderer) {
 		ImGui::Separator();
 		ImGui::Checkbox("Peter Pan", &renderer.PeterPan);
 		ImGui::Checkbox("HDR", &renderer.HDR);
+		ImGui::Checkbox("Blur Shadow", &renderer.ShadowBluring);
 		ImGui::EndMenu();
 	}
 }

@@ -15,6 +15,7 @@
 #include <LightUI.h>
 
 
+
 class Application
 {
 private:
@@ -26,7 +27,6 @@ private:
 	static int rightMouseDown;
 	static float rotateSensitivity;
 	static float walkSensitivity;
-	static bool centerRotateMode;
 
 	static bool hideUI;
 	static bool fullscreen;
@@ -49,4 +49,6 @@ public:
 	Application();
 	~Application();
 	void Run();
+
+	friend void ControlMenu(Application &application);
 };
