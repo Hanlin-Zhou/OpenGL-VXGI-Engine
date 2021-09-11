@@ -1,4 +1,5 @@
 #pragma once
+
 #include <ApplicationUtility.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
@@ -11,7 +12,7 @@
 #include <Model.h>
 #include <Light.h>
 #include <Camera.h>
-
+#include <GLFW/glfw3.h>
 
 class Renderer {
 private:
@@ -102,10 +103,17 @@ private:
 
 	// SVOGI
 	unsigned int SVOGIFBO;
-	unsigned int SVOGI3DTEX;
+	//unsigned int SVOGIRSMFBO;
+	//unsigned int SVOGIRSMCubeMap;
+	unsigned int Albedo3D;
+	unsigned int Normal3D;
+	unsigned int Radiance3D;
 	float MaxCoord;
+	unsigned int vLevel;
 	int VoxelSize;
+	glm::mat4 VoxelProjectMat;
 	Shader VoxelizeShader;
+	Shader LightInjectionShader;
 
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;

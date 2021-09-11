@@ -23,14 +23,17 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	ShowNormal = true;
 	renderWidth = width;
 	renderHeight = height;
+	
 	shadowWidth = 2048;
 	shadowHeight = 2048;
 
 	SVOGI = false;
 
-	VoxelSize = 256;
+	vLevel = 8;
+	VoxelSize = pow(2, 8);
 	HDRIwidth = 1024;
 
+	
 
 }
 
@@ -59,6 +62,8 @@ void Renderer::run() {
 }
 
 void Renderer::initializeBuffers() {
+	glFinish();
+	double startTime = glfwGetTime();
 	if (GLDebugOutput) {
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -158,7 +163,15 @@ void Renderer::initializeBuffers() {
 	}
 
 	// DepthCube / Cube Shadow
-	if (PCSS) {
+	{
+		if (SVOGI) {
+			shadowWidth = 2 * VoxelSize;
+			shadowHeight = 2 * VoxelSize;
+		}
+		else {
+			shadowWidth = 2048;
+			shadowHeight = 2048;
+		}
 		glGenFramebuffers(1, &DepthCubeFBO);
 		DepthCubeMap = bindCubeDepthMap(DepthCubeFBO, shadowWidth, shadowHeight);
 		SProj = glm::perspective(glm::radians(90.0), (double)shadowWidth / (double)shadowHeight, 0.1, 80.0);
@@ -168,48 +181,82 @@ void Renderer::initializeBuffers() {
 	if (SkyBox) {
 		loadHDRI(false);
 	}
-
+	glFinish();
+	double VXGIstart = glfwGetTime();
 	if (SVOGI) {
 		glGenFramebuffers(1, &VoxelVisFBO);
 		VoxelVisFrontFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
 		VoxelVisBackFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
 		VoxelVisOut = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
 
-		// glGenFramebuffers(1, &SVOGIFBO);
-		// glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
-		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
-		glGenTextures(1, &SVOGI3DTEX);
-		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
-		// float* data = new float[VoxelSize * VoxelSize * VoxelSize];
-		// memset(data, 0, sizeof(float) * VoxelSize * VoxelSize * VoxelSize);
+		glGenFramebuffers(1, &SVOGIFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+		glGenTextures(1, &Albedo3D);
+		glBindTexture(GL_TEXTURE_3D, Albedo3D);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		/*glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_3D, Albedo3D, 0, 0);
+
+		glGenTextures(1, &Normal3D);
+		glBindTexture(GL_TEXTURE_3D, Normal3D);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		/*glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_3D, Normal3D, 0, 0);
+
+		glGenTextures(1, &Radiance3D);
+		glBindTexture(GL_TEXTURE_3D, Radiance3D);
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexStorage3D(GL_TEXTURE_3D, vLevel, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_3D, Radiance3D, 0, 0);
 
 
+		// Voxelize
+		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
 		MaxCoord = myModel.max_pos + 1.0;
 		std::cout << "max coord = " << MaxCoord << std::endl;
 		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
-		glm::mat4 ProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		VoxelizeShader.use();
-		VoxelizeShader.setMat4("ProjectMat", ProjectMat);
+		VoxelizeShader.setMat4("ProjectMat", VoxelProjectMat);
 		VoxelizeShader.setInt("VoxelSize", VoxelSize);
-		// glActiveTexture(GL_TEXTURE0);
-		// glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
-		VoxelizeShader.setInt("tex3D", 0);
-		glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+		glBindImageTexture(0, Albedo3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glBindImageTexture(1, Normal3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glViewport(0, 0, VoxelSize, VoxelSize);
+		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+		
 		myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
+		// glGenerateMipmap(GL_TEXTURE_3D);
+		glBindTexture(GL_TEXTURE_3D, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	
+	//if (SVOGI) {
+	//	// Set up RSM
+	//	glGenFramebuffers(1, &SVOGIRSMFBO);
+	//	SVOGIRSMCubeMap = bindCubeDepthMap(SVOGIRSMFBO, 2 * VoxelSize, 2 * VoxelSize);
+	//}
+	glFinish();
+	double VXGIend = glfwGetTime();
+	double endTime = glfwGetTime();
+	std::cout << "Init Time:" << (endTime - startTime) * 1000.0 << std::endl;
+	std::cout << "VXGI Init Time:" << (VXGIend - VXGIstart) * 1000.0 << std::endl;
 }
 
 
@@ -322,8 +369,8 @@ void Renderer::Draw() {
 		renderSkybox(SkyBoxVAO);
 	}
 
-	// PCSS
-	if (PCSS) {
+	// ShadowMap
+	if (PCSS || SVOGI) {
 		glm::vec3 lightpos = myLight.getPos();
 		std::vector<glm::mat4> shadowTransforms;
 		shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
@@ -354,47 +401,38 @@ void Renderer::Draw() {
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 	}
-
 	if (SVOGI) {
-		glViewport(0, 0, renderWidth, renderHeight);
-		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
-		VoxelVisFaceShader.use();
-		VoxelVisFaceShader.setMat4("proj", glm::value_ptr(proj_mat), false);
-		VoxelVisFaceShader.setMat4("view", glm::value_ptr(view_mat), false);
+		// RSM
+		/*glm::vec3 lightpos = myLight.getPos();
+		std::vector<glm::mat4> shadowTransforms;
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+		glViewport(0, 0, shadowWidth, shadowHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+		float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		glClearTexImage(SVOGI3DTEX, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+		LightInjectionShader.use();
+		LightInjectionShader.setVec3("lightPos", glm::value_ptr(lightpos));
+		for (unsigned int i = 0; i < 6; ++i)
+			LightInjectionShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+		LightInjectionShader.setFloat("far_plane", 80.0);
+		LightInjectionShader.setInt("tex3D", 0);
+		glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+		LightInjectionShader.setMat4("ProjectMat", VoxelProjectMat);
+		LightInjectionShader.setInt("VoxelSize", VoxelSize);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
-		glDrawBuffer(GL_COLOR_ATTACHMENT0);
-		glCullFace(GL_BACK);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		renderSkybox(SkyBoxVAO);
-
-		glDrawBuffer(GL_COLOR_ATTACHMENT1);
-		glCullFace(GL_FRONT);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		renderSkybox(SkyBoxVAO);
-
-		glCullFace(GL_BACK);
+		myModel.Draw(LightInjectionShader, true, true);
 		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);*/
 
-		VoxelVisTraceShader.use();
-		glDrawBuffer(GL_COLOR_ATTACHMENT2);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, VoxelVisBackFace);
-		VoxelVisTraceShader.setInt("textureBack", 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, VoxelVisFrontFace);
-		VoxelVisTraceShader.setInt("textureFront", 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_3D, SVOGI3DTEX);
-		VoxelVisTraceShader.setInt("tex3D", 2);
-		glm::vec3 temp_campos = cam.getPosition();
-		VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));
-		renderQuad(quadVAO);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
+	
 
 	if (PCSS) {
 		// G Buffer Lighting Pass
@@ -434,7 +472,6 @@ void Renderer::Draw() {
 			ShadowOut = ShadowRaw;
 		}
 	}
-
 
 	// Combine
 	if (PCSS)
@@ -488,6 +525,47 @@ void Renderer::Draw() {
 		glDisable(GL_FRAMEBUFFER_SRGB);
 	}
 
+	if (SVOGI) {
+		// raytrace visualization
+		glViewport(0, 0, renderWidth, renderHeight);
+		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
+		VoxelVisFaceShader.use();
+		VoxelVisFaceShader.setMat4("proj", glm::value_ptr(proj_mat), false);
+		VoxelVisFaceShader.setMat4("view", glm::value_ptr(view_mat), false);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glCullFace(GL_BACK);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		renderSkybox(SkyBoxVAO);
+
+		glDrawBuffer(GL_COLOR_ATTACHMENT1);
+		glCullFace(GL_FRONT);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		renderSkybox(SkyBoxVAO);
+
+		glCullFace(GL_BACK);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+
+		VoxelVisTraceShader.use();
+		glDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, VoxelVisBackFace);
+		VoxelVisTraceShader.setInt("textureBack", 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, VoxelVisFrontFace);
+		VoxelVisTraceShader.setInt("textureFront", 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_3D, Normal3D);
+		VoxelVisTraceShader.setInt("tex3D", 2);
+		glm::vec3 temp_campos = cam.getPosition();
+		VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));
+		renderQuad(quadVAO);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
 	// Debug
 
 	if (ShowDebug) {
@@ -618,6 +696,8 @@ void Renderer::LoadShaders() {
 		VoxelizeShader = Shader("./shader/voxelize.vert", "./shader/voxelize.frag", "./shader/voxelize.geom");
 		VoxelVisFaceShader = Shader("./shader/VoxelVisFace.vert", "./shader/VoxelVisFace.frag");
 		VoxelVisTraceShader = Shader("./shader/VoxelVisTrace.vert", "./shader/VoxelVisTrace.frag");
+		//LightInjectionShader = Shader("./shader/lightInjection.vert", "./shader/lightInjection.frag", "./shader/lightInjection.geom");
+		LightInjectionShader = Shader(nullptr, nullptr, nullptr, "./shader/lightInjection.comp");
 	}
 
 	// HDRI
