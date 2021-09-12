@@ -1,12 +1,61 @@
 #version 430 core
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 layout(binding = 0, rgba8) writeonly uniform image3D Radiance3D;
-layout(binding = 1, rgba8) readonly uniform image3D Albedo3D;
-layout(binding = 2, rgba8) readonly uniform image3D Normal3D;
+uniform sampler3D Albedo3D;
+uniform sampler3D Normal3D;
+
+uniform samplerCube depthCubemap;
+uniform float far_plane;
+uniform float MaxCoord;
+uniform int VoxelSize;
+uniform vec3 lightPos;
+
+const float cellSize = 2.0 * MaxCoord / float(VoxelSize);
+
+vec3 volPosToWorldPos(ivec3 volPos){
+	return vec3(volPos) * cellSize - vec3(MaxCoord);
+}
+
+float calculateShadow(vec3 lightPosition, vec3 FragPos){
+	vec3 fragToLight = FragPos - lightPosition; 
+    float currentDepth = length(fragToLight);
+	float closestDepth = texture(depthCubemap, fragToLight).r;
+	closestDepth *= far_plane;
+	if (closestDepth < currentDepth - 1.0) {
+		return 0.0;
+	}
+	return 1.0;
+}
+
+vec3 DecodeNormal(vec3 normal)
+{
+    return normal * 2.0f - vec3(1.0f);
+}
+
 
 void main()
 {
-	
+	if(gl_GlobalInvocationID.x >= VoxelSize ||
+		gl_GlobalInvocationID.y >= VoxelSize ||
+		gl_GlobalInvocationID.z >= VoxelSize) return;
+
+	ivec3 VoxelPos = ivec3(gl_GlobalInvocationID);
+	vec4 color = texelFetch(Albedo3D, VoxelPos, 0);
+	if (color.a == 0.0f){
+		return;
+	}
+	vec3 normal = DecodeNormal(texelFetch(Normal3D, VoxelPos, 0).xyz);
+	vec3 worldPos = volPosToWorldPos(VoxelPos);
+	float visibility = calculateShadow(lightPos, worldPos);
+	vec3 lightToFrag = lightPos - worldPos;
+	vec3 lightDir = normalize(lightToFrag);
+	float lightDist = length(lightToFrag);
+    float falloff = 1000.0/(4.0 * 3.1415 * lightDist * lightDist);
+    float diff = max(dot(lightDir, normal), 0.0);
+    float diffuse = diff * falloff;
+	vec4 lighting = vec4(visibility * diffuse * color.xyz, 1.0);
+	imageStore(Radiance3D, VoxelPos, lighting);
+
 }

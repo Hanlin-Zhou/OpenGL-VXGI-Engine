@@ -219,7 +219,7 @@ void Renderer::initializeBuffers() {
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexStorage3D(GL_TEXTURE_3D, vLevel, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_3D, Radiance3D, 0, 0);
@@ -239,19 +239,11 @@ void Renderer::initializeBuffers() {
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glViewport(0, 0, VoxelSize, VoxelSize);
-		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
-		
 		myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
-		// glGenerateMipmap(GL_TEXTURE_3D);
 		glBindTexture(GL_TEXTURE_3D, 0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	//if (SVOGI) {
-	//	// Set up RSM
-	//	glGenFramebuffers(1, &SVOGIRSMFBO);
-	//	SVOGIRSMCubeMap = bindCubeDepthMap(SVOGIRSMFBO, 2 * VoxelSize, 2 * VoxelSize);
-	//}
 	glFinish();
 	double VXGIend = glfwGetTime();
 	double endTime = glfwGetTime();
@@ -402,35 +394,43 @@ void Renderer::Draw() {
 		glDisable(GL_CULL_FACE);
 	}
 	if (SVOGI) {
-		// RSM
-		/*glm::vec3 lightpos = myLight.getPos();
-		std::vector<glm::mat4> shadowTransforms;
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
-		shadowTransforms.push_back(SProj* glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
-		glViewport(0, 0, shadowWidth, shadowHeight);
+
+		unsigned int workgroupsize = VoxelSize / 8;
+
+		// Light Injcetion
 		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
 		float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		glClearTexImage(SVOGI3DTEX, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+		glClearTexImage(Radiance3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
 		LightInjectionShader.use();
+		glm::vec3 lightpos = myLight.getPos();
 		LightInjectionShader.setVec3("lightPos", glm::value_ptr(lightpos));
-		for (unsigned int i = 0; i < 6; ++i)
-			LightInjectionShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-		LightInjectionShader.setFloat("far_plane", 80.0);
-		LightInjectionShader.setInt("tex3D", 0);
-		glBindImageTexture(0, SVOGI3DTEX, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
-		LightInjectionShader.setMat4("ProjectMat", VoxelProjectMat);
 		LightInjectionShader.setInt("VoxelSize", VoxelSize);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		myModel.Draw(LightInjectionShader, true, true);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);*/
+		LightInjectionShader.setFloat("far_plane", 80.0);
+		LightInjectionShader.setFloat("MaxCoord", MaxCoord);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
+		glBindImageTexture(0, Radiance3D, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+		LightInjectionShader.setInt("depthCubemap", 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_3D, Albedo3D);
+		LightInjectionShader.setInt("Albedo3D", 2);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_3D, Normal3D);
+		LightInjectionShader.setInt("Normal3D", 3);
+		glDispatchCompute(workgroupsize, workgroupsize, workgroupsize);
+		glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-
+		// Mipmap
+		MipmapShader.use();
+		for (int mipLevel = 1; mipLevel < 6; mipLevel++) {
+			glBindImageTexture(0, Radiance3D, mipLevel, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+			glBindImageTexture(1, Radiance3D, mipLevel - 1, GL_TRUE, 0, GL_READ_ONLY, GL_RGBA8);
+			int div = pow(2, mipLevel);
+			glDispatchCompute(workgroupsize / div, workgroupsize / div, workgroupsize / div);
+			glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glFinish();
 	}
 	
 
@@ -457,7 +457,7 @@ void Renderer::Draw() {
 		gBufferLightPass.setInt("MSAA_Sample", MSAASample);
 		renderQuad(quadVAO);
 
-		if (ShadowBluring) {
+		if (ShadowBluring && MSAA) {
 			glDrawBuffer(GL_COLOR_ATTACHMENT1);
 			BlurShader.use();
 			glActiveTexture(GL_TEXTURE0);
@@ -558,7 +558,7 @@ void Renderer::Draw() {
 		glBindTexture(GL_TEXTURE_2D, VoxelVisFrontFace);
 		VoxelVisTraceShader.setInt("textureFront", 1);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_3D, Normal3D);
+		glBindTexture(GL_TEXTURE_3D, Radiance3D);
 		VoxelVisTraceShader.setInt("tex3D", 2);
 		glm::vec3 temp_campos = cam.getPosition();
 		VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));
@@ -683,7 +683,7 @@ void Renderer::LoadShaders() {
 	}
 
 	// PCSS
-	if (PCSS) {
+	if (PCSS || SVOGI) {
 		PCSSDepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
 		if (MSAA) {
 			gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/MSCubePCSS.frag");
@@ -698,6 +698,7 @@ void Renderer::LoadShaders() {
 		VoxelVisTraceShader = Shader("./shader/VoxelVisTrace.vert", "./shader/VoxelVisTrace.frag");
 		//LightInjectionShader = Shader("./shader/lightInjection.vert", "./shader/lightInjection.frag", "./shader/lightInjection.geom");
 		LightInjectionShader = Shader(nullptr, nullptr, nullptr, "./shader/lightInjection.comp");
+		MipmapShader = Shader(nullptr, nullptr, nullptr, "./shader/MipMap.comp");
 	}
 
 	// HDRI

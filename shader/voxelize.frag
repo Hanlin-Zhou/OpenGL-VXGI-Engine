@@ -20,6 +20,12 @@ uint convVec4ToRGBA8(vec4 val){
     return (uint(val.w) & 0x000000FF) << 24U | (uint(val.z) &0x000000FF) << 16U | (uint(val.y) & 0x000000FF) << 8U | (uint(val.x) & 0x000000FF);
 }
 
+
+vec3 EncodeNormal(vec3 normal)
+{
+    return normal * 0.5f + vec3(0.5f);
+}
+
 void imageAtomicRGBA8Avg(layout(r32ui) coherent volatile uimage3D img, ivec3 coords, vec4 val){
     val.rgb *= 255.0f;
     uint newVal = convVec4ToRGBA8(val);
@@ -45,5 +51,5 @@ void main()
     // imageStore(Normal3D, ivec3(gs_out.geoVoxelPos), vec4(gs_out.geoNormal, 1.0));
     ivec3 pos = ivec3(gs_out.geoVoxelPos);
     imageAtomicRGBA8Avg(Albedo3D, ivec3(gs_out.geoVoxelPos), color);
-    imageAtomicRGBA8Avg(Normal3D, ivec3(gs_out.geoVoxelPos), vec4(gs_out.geoNormal, 1.0));
+    imageAtomicRGBA8Avg(Normal3D, ivec3(gs_out.geoVoxelPos), vec4(EncodeNormal(gs_out.geoNormal), 1.0));
 }  

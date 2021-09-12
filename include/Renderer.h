@@ -103,8 +103,6 @@ private:
 
 	// SVOGI
 	unsigned int SVOGIFBO;
-	//unsigned int SVOGIRSMFBO;
-	//unsigned int SVOGIRSMCubeMap;
 	unsigned int Albedo3D;
 	unsigned int Normal3D;
 	unsigned int Radiance3D;
@@ -114,6 +112,7 @@ private:
 	glm::mat4 VoxelProjectMat;
 	Shader VoxelizeShader;
 	Shader LightInjectionShader;
+	Shader MipmapShader;
 
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;
