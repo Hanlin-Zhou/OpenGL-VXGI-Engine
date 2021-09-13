@@ -219,7 +219,7 @@ void Renderer::initializeBuffers() {
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexStorage3D(GL_TEXTURE_3D, vLevel, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_3D, Radiance3D, 0, 0);
@@ -430,7 +430,38 @@ void Renderer::Draw() {
 			glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glFinish();
+
+		// Cone Tracing
+		glViewport(0, 0, renderWidth, renderHeight);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		ConeTracingShader.use();
+		glm::vec3 temp_campos = cam.getPosition();
+		glm::vec3 temp_lightpos = myLight.getPos();
+		ConeTracingShader.setVec3("lightPos", glm::value_ptr(temp_lightpos));
+		ConeTracingShader.setVec3("viewPos", glm::value_ptr(temp_campos));
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gPosition);
+		ConeTracingShader.setInt("gPosition", 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gNormal);
+		ConeTracingShader.setInt("gNormal", 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+		ConeTracingShader.setInt("gAlbedoSpec", 2);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, ShadowOut);
+		ConeTracingShader.setInt("Shadow", 3);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_3D, Radiance3D);
+		ConeTracingShader.setInt("Radiance3D", 4);
+		ConeTracingShader.setFloat("MaxCoord", MaxCoord);
+		ConeTracingShader.setInt("VoxelSize", VoxelSize);
+		ConeTracingShader.setMat4("ProjectMat", VoxelProjectMat);
+		float VoxelCellSize = MaxCoord * 2.0 / VoxelSize;
+		ConeTracingShader.setFloat("VoxelCellSize", VoxelCellSize);
+		glEnable(GL_FRAMEBUFFER_SRGB);
+		renderQuad(quadVAO);
+		glDisable(GL_FRAMEBUFFER_SRGB);
 	}
 	
 
@@ -543,7 +574,6 @@ void Renderer::Draw() {
 		glCullFace(GL_FRONT);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		renderSkybox(SkyBoxVAO);
-
 		glCullFace(GL_BACK);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
@@ -696,9 +726,9 @@ void Renderer::LoadShaders() {
 		VoxelizeShader = Shader("./shader/voxelize.vert", "./shader/voxelize.frag", "./shader/voxelize.geom");
 		VoxelVisFaceShader = Shader("./shader/VoxelVisFace.vert", "./shader/VoxelVisFace.frag");
 		VoxelVisTraceShader = Shader("./shader/VoxelVisTrace.vert", "./shader/VoxelVisTrace.frag");
-		//LightInjectionShader = Shader("./shader/lightInjection.vert", "./shader/lightInjection.frag", "./shader/lightInjection.geom");
 		LightInjectionShader = Shader(nullptr, nullptr, nullptr, "./shader/lightInjection.comp");
 		MipmapShader = Shader(nullptr, nullptr, nullptr, "./shader/MipMap.comp");
+		ConeTracingShader = Shader("./shader/deferred_shading.vert", "./shader/ConeTracing.frag");
 	}
 
 	// HDRI

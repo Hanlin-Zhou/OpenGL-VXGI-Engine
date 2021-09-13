@@ -113,6 +113,7 @@ private:
 	Shader VoxelizeShader;
 	Shader LightInjectionShader;
 	Shader MipmapShader;
+	Shader ConeTracingShader;
 
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;
