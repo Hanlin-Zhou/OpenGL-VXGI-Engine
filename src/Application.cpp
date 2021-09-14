@@ -98,6 +98,7 @@ void Application::renderUI() {
 		LightMenu(currRenderer.myLight);
 		ControlMenu(*this);
 		DebugMenu(currRenderer);
+		SVOGIDebugMenu(currRenderer);
 		ImGui::EndMainMenuBar();
 	}
 }

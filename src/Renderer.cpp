@@ -33,8 +33,11 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	VoxelSize = pow(2, 8);
 	HDRIwidth = 1024;
 
-	
-
+	GI_offsetFactor = 3.0;
+	GI_SpecularAperture = 0.10;
+	GI_DiffuseAperture = 1.04;
+	GI_OcculsionAperture = 0.10;
+	GI_stepSize = 0.3;
 }
 
 Renderer::~Renderer() {
@@ -78,13 +81,13 @@ void Renderer::initializeBuffers() {
 	glEnable(GL_MULTISAMPLE);
 	glGenFramebuffers(1, &gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-	glDrawBuffers(3, attachments);
+	unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+	glDrawBuffers(4, attachments);
 
 	gPosition = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, MSAASample, GL_LINEAR);
 	gNormal = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, MSAASample, GL_LINEAR);
 	gAlbedoSpec = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, MSAASample, GL_LINEAR);
-	// gShadow = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_R32F, MSAASample, GL_LINEAR);
+	gTangent = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA32F, MSAASample, GL_LINEAR);
 	attachRBOToBuffer(gBuffer, renderWidth, renderHeight, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, MSAASample);
 
 	// Shadow FBO
@@ -102,11 +105,13 @@ void Renderer::initializeBuffers() {
 		ds_gPosition = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
 		ds_gNormal = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
 		ds_gAlbedoSpec = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
+
 	}
 	else {
 		ds_gPosition = gPosition;
 		ds_gNormal = gNormal;
 		ds_gAlbedoSpec = gAlbedoSpec;
+		ds_gTangent = gTangent;
 	}
 	
 
@@ -452,11 +457,19 @@ void Renderer::Draw() {
 		glBindTexture(GL_TEXTURE_2D, ShadowOut);
 		ConeTracingShader.setInt("Shadow", 3);
 		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, gTangent);
+		ConeTracingShader.setInt("gTangent", 4);
+		glActiveTexture(GL_TEXTURE5);
 		glBindTexture(GL_TEXTURE_3D, Radiance3D);
-		ConeTracingShader.setInt("Radiance3D", 4);
+		ConeTracingShader.setInt("Radiance3D", 5);
 		ConeTracingShader.setFloat("MaxCoord", MaxCoord);
 		ConeTracingShader.setInt("VoxelSize", VoxelSize);
 		ConeTracingShader.setMat4("ProjectMat", VoxelProjectMat);
+		ConeTracingShader.setFloat("offsetFactor", GI_offsetFactor);
+		ConeTracingShader.setFloat("SpecularAperture", GI_SpecularAperture);
+		ConeTracingShader.setFloat("DiffuseAperture", GI_DiffuseAperture);
+		ConeTracingShader.setFloat("OcculsionAperture", GI_OcculsionAperture);
+		ConeTracingShader.setFloat("stepSize", GI_stepSize);
 		float VoxelCellSize = MaxCoord * 2.0 / VoxelSize;
 		ConeTracingShader.setFloat("VoxelCellSize", VoxelCellSize);
 		glEnable(GL_FRAMEBUFFER_SRGB);

@@ -59,9 +59,9 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		vertex.Normal = nor_vector;
 
 		glm::vec3 tan_vector;
-		tan_vector.x = mesh->mTangents[i].x;
-		tan_vector.y = mesh->mTangents[i].y;
-		tan_vector.z = mesh->mTangents[i].z;
+		tan_vector.x = mesh->mBitangents[i].x;
+		tan_vector.y = mesh->mBitangents[i].y;
+		tan_vector.z = mesh->mBitangents[i].z;
 		vertex.Tangent = tan_vector;
 
 		if (mesh->mTextureCoords[0]) 

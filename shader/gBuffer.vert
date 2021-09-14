@@ -7,6 +7,7 @@ layout (location = 3) in vec3 aTangent;
 out VS_OUT {
     vec3 FragPos;
     vec3 Normal;
+    vec3 Tangent;
     vec2 TexCoords;
     mat3 TBN;
 } vs_out;
@@ -21,7 +22,10 @@ void main()
     // vs_out.Normal = transpose(inverse(mat3(model))) * aNormal;
     vs_out.Normal = aNormal;
     vs_out.TexCoords = aTexCoords;
-    vec3 B = normalize(cross(normalize(aNormal), normalize(aTangent)));
-    vs_out.TBN = mat3(normalize(aTangent), B, normalize(aNormal));
+    vec3 Ntangent = normalize(aTangent);
+    vec3 B = normalize(cross(normalize(aNormal), Ntangent));
+    
+    vs_out.TBN = mat3(B, Ntangent, normalize(aNormal));
+    vs_out.Tangent = B;
     gl_Position = proj * view * vec4(aPos, 1.0);
 }

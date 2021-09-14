@@ -57,6 +57,7 @@ private:
 	unsigned int gPosition;
 	unsigned int gNormal;
 	unsigned int gAlbedoSpec;
+	unsigned int gTangent;
 	Shader gBufferGeoPass;
 	Shader gBufferLightPass;
 	Shader gBufferCombine;
@@ -72,6 +73,7 @@ private:
 	unsigned int ds_gPosition;
 	unsigned int ds_gNormal;
 	unsigned int ds_gAlbedoSpec;
+	unsigned int ds_gTangent;
 	unsigned int ds_gViewPos;
 	Shader DownSampleShader;
 
@@ -115,6 +117,12 @@ private:
 	Shader MipmapShader;
 	Shader ConeTracingShader;
 
+	float GI_offsetFactor;
+	float GI_SpecularAperture;
+	float GI_DiffuseAperture;
+	float GI_OcculsionAperture;
+	float GI_stepSize;
+
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;
 	unsigned int VoxelVisFrontFace;
@@ -157,4 +165,5 @@ public:
 	friend void LoadMenu(Renderer &renderer);
 	friend void RendererMenu(Renderer &renderer);
 	friend void DebugMenu(Renderer &renderer);
+	friend void SVOGIDebugMenu(Renderer& renderer);
 };

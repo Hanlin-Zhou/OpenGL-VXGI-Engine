@@ -9,3 +9,5 @@ void LoadMenu(Renderer &renderer);
 void RendererMenu(Renderer &renderer);
 
 void DebugMenu(Renderer &renderer);
+
+void SVOGIDebugMenu(Renderer& renderer);
