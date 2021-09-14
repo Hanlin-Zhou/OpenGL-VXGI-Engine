@@ -34,6 +34,7 @@ void Camera::turn(float horizontalRad, float verticalRad) {
 	rot_mat = glm::rotate(rot_mat, verticalRad, camRight);
 	dir = rot_mat * dir;
 	camLookAt = camPosition + glm::vec3(dir.x, dir.y, dir.z);
+	camRight = glm::normalize(glm::cross(glm::normalize(camPosition - camLookAt), camUp));
 }
 
 

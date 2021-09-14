@@ -14,7 +14,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	PCSS = false;
 	ShadowBluring = false;
 	PeterPan = false;
-	SSAO = true;
+	SSAO = false;
 	HDR = false;
 	SkyBox = true;
 	ShowDebug = false;
@@ -33,7 +33,9 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	VoxelSize = pow(2, 8);
 	HDRIwidth = 1024;
 
-	GI_offsetFactor = 3.0;
+	GI_OcclusionOffsetFactor = 3.0;
+	GI_DiffuseOffsetFactor = 1.5;
+	GI_SpecularOffsetFactor = 3.0;
 	GI_SpecularAperture = 0.10;
 	GI_DiffuseAperture = 1.04;
 	GI_OcculsionAperture = 0.10;
@@ -187,8 +189,6 @@ void Renderer::initializeBuffers() {
 	if (SkyBox) {
 		loadHDRI(false);
 	}
-	glFinish();
-	double VXGIstart = glfwGetTime();
 	if (SVOGI) {
 		glGenFramebuffers(1, &VoxelVisFBO);
 		VoxelVisFrontFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
@@ -200,22 +200,12 @@ void Renderer::initializeBuffers() {
 		glGenTextures(1, &Albedo3D);
 		glBindTexture(GL_TEXTURE_3D, Albedo3D);
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-		/*glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
 		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_3D, Albedo3D, 0, 0);
 
 		glGenTextures(1, &Normal3D);
 		glBindTexture(GL_TEXTURE_3D, Normal3D);
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-		/*glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
 		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_3D, Normal3D, 0, 0);
 
@@ -232,29 +222,8 @@ void Renderer::initializeBuffers() {
 
 
 		// Voxelize
-		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
-		MaxCoord = myModel.max_pos + 1.0;
-		std::cout << "max coord = " << MaxCoord << std::endl;
-		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
-		VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		VoxelizeShader.use();
-		VoxelizeShader.setMat4("ProjectMat", VoxelProjectMat);
-		VoxelizeShader.setInt("VoxelSize", VoxelSize);
-		glBindImageTexture(0, Albedo3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-		glBindImageTexture(1, Normal3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
-		glViewport(0, 0, VoxelSize, VoxelSize);
-		myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
-		glBindTexture(GL_TEXTURE_3D, 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		voxelize();
 	}
-
-	glFinish();
-	double VXGIend = glfwGetTime();
-	double endTime = glfwGetTime();
-	std::cout << "Init Time:" << (endTime - startTime) * 1000.0 << std::endl;
-	std::cout << "VXGI Init Time:" << (VXGIend - VXGIstart) * 1000.0 << std::endl;
 }
 
 
@@ -410,6 +379,7 @@ void Renderer::Draw() {
 		LightInjectionShader.use();
 		glm::vec3 lightpos = myLight.getPos();
 		LightInjectionShader.setVec3("lightPos", glm::value_ptr(lightpos));
+		LightInjectionShader.setFloat("lightStrength", myLight.strength);
 		LightInjectionShader.setInt("VoxelSize", VoxelSize);
 		LightInjectionShader.setFloat("far_plane", 80.0);
 		LightInjectionShader.setFloat("MaxCoord", MaxCoord);
@@ -445,6 +415,7 @@ void Renderer::Draw() {
 		glm::vec3 temp_lightpos = myLight.getPos();
 		ConeTracingShader.setVec3("lightPos", glm::value_ptr(temp_lightpos));
 		ConeTracingShader.setVec3("viewPos", glm::value_ptr(temp_campos));
+		ConeTracingShader.setFloat("lightStrength", myLight.strength);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, gPosition);
 		ConeTracingShader.setInt("gPosition", 0);
@@ -463,10 +434,15 @@ void Renderer::Draw() {
 		glActiveTexture(GL_TEXTURE5);
 		glBindTexture(GL_TEXTURE_3D, Radiance3D);
 		ConeTracingShader.setInt("Radiance3D", 5);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
+		ConeTracingShader.setInt("skybox", 6);
 		ConeTracingShader.setFloat("MaxCoord", MaxCoord);
 		ConeTracingShader.setInt("VoxelSize", VoxelSize);
 		ConeTracingShader.setMat4("ProjectMat", VoxelProjectMat);
-		ConeTracingShader.setFloat("offsetFactor", GI_offsetFactor);
+		ConeTracingShader.setFloat("OcclusionOffsetFactor", GI_OcclusionOffsetFactor);
+		ConeTracingShader.setFloat("DiffuseOffsetFactor", GI_DiffuseOffsetFactor);
+		ConeTracingShader.setFloat("SpecularOffsetFactor", GI_SpecularOffsetFactor);
 		ConeTracingShader.setFloat("SpecularAperture", GI_SpecularAperture);
 		ConeTracingShader.setFloat("DiffuseAperture", GI_DiffuseAperture);
 		ConeTracingShader.setFloat("OcculsionAperture", GI_OcculsionAperture);
@@ -571,7 +547,7 @@ void Renderer::Draw() {
 		glDisable(GL_FRAMEBUFFER_SRGB);
 	}
 
-	if (SVOGI) {
+	if (SVOGI | ShowDebug) {
 		// raytrace visualization
 		glViewport(0, 0, renderWidth, renderHeight);
 		glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
@@ -628,6 +604,29 @@ void Renderer::Draw() {
 
 void Renderer::loadModel() {
 	myModel = Model(modelPath.c_str());
+}
+
+
+void Renderer::voxelize() {
+	float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	glClearTexImage(Albedo3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+	glClearTexImage(Normal3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+	glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+	MaxCoord = myModel.max_pos + 1.0;
+	std::cout << "max coord = " << MaxCoord << std::endl;
+	glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
+	VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	VoxelizeShader.use();
+	VoxelizeShader.setMat4("ProjectMat", VoxelProjectMat);
+	VoxelizeShader.setInt("VoxelSize", VoxelSize);
+	glBindImageTexture(0, Albedo3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(1, Normal3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glViewport(0, 0, VoxelSize, VoxelSize);
+	myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
+	glBindTexture(GL_TEXTURE_3D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 

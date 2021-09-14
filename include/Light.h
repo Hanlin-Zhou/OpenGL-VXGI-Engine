@@ -5,6 +5,7 @@ class Light {
 public:
 	glm::vec3 position;
 	glm::vec3 normal;
+	float strength;
 
 	Light();
 	void setPos(glm::vec3 pos);

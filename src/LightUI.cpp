@@ -15,9 +15,10 @@ void LightMenu(Light &mylight) {
 		// -------------------------------------------------------------------------------------------------------------- //
 		if (settingWindow) {
 			ImGui::SetNextWindowPos(ImVec2(ImGui::GetWindowSize()[0], 22.0), ImGuiCond_Appearing, { 1.0f, 0.0f });
-			ImGui::SetNextWindowSize({ 250.0f, 80.0f }, ImGuiCond_Appearing);
+			ImGui::SetNextWindowSize({ 250.0f, 120.0f }, ImGuiCond_Appearing);
 			ImGui::Begin("Light Setting", &settingWindow, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 			ImGui::DragFloat3("Position", glm::value_ptr(mylight.position), 0.005f);
+			ImGui::DragFloat("Strength", &mylight.strength, 30.0f, 800.0f, 10000.0f);
 			ImGui::End();
 		}
 	}

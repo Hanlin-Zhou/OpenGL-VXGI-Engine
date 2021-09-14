@@ -11,6 +11,7 @@ uniform float far_plane;
 uniform float MaxCoord;
 uniform int VoxelSize;
 uniform vec3 lightPos;
+uniform float lightStrength;
 
 const float cellSize = 2.0 * MaxCoord / float(VoxelSize);
 
@@ -52,7 +53,7 @@ void main()
 	vec3 lightToFrag = lightPos - worldPos;
 	vec3 lightDir = normalize(lightToFrag);
 	float lightDist = length(lightToFrag);
-    float falloff = 1000.0/(4.0 * 3.1415 * lightDist * lightDist);
+    float falloff = lightStrength/(4.0 * 3.1415 * lightDist * lightDist);
     float diff = max(dot(lightDir, normal), 0.0);
     float diffuse = diff * falloff;
 	vec4 lighting = vec4(visibility * diffuse * color.xyz, 1.0);

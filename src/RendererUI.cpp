@@ -67,6 +67,9 @@ void LoadMenu(Renderer &renderer) {
 			char const* lFilterPatterns[1] = { "*.obj" };
 			renderer.modelPath = tinyfd_openFileDialog("Open Your OBJ Model", "./model/", 1, lFilterPatterns, "OBJ File", 0);
 			renderer.loadModel();
+			if (renderer.SVOGI) {
+				renderer.voxelize();
+			}
 		}
 
 		if (ImGui::MenuItem("New HDRI", NULL)) {
@@ -104,14 +107,17 @@ void SVOGIDebugMenu(Renderer& renderer) {
 	if (ImGui::BeginMenu("GI Debug")) {
 		
 		ImGui::DragFloat("Specular Aperture", &renderer.GI_SpecularAperture, 0.02f, 0.02f, 1.5f);
+		ImGui::DragFloat("Specular Offset", &renderer.GI_SpecularOffsetFactor, 0.1f, 0.1f, 10.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Diffuse Aperture", &renderer.GI_DiffuseAperture, 0.02f, 0.02f, 1.5f);
 		ImGui::DragFloat("Diffuse Cone Angle", &renderer.GI_DiffuseConeAngleMix, 0.01f, 0.01f, 1.0f);
+		ImGui::DragFloat("Diffuse Offset", &renderer.GI_DiffuseOffsetFactor, 0.1f, 0.1f, 10.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Occulsion Aperture", &renderer.GI_OcculsionAperture, 0.01f, 0.01f, 1.5f);
+		ImGui::DragFloat("Occulsion Offset", &renderer.GI_OcclusionOffsetFactor, 0.1f, 0.1f, 10.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Step Size", &renderer.GI_stepSize, 0.1f, 0.02f, 10.0f);
-		ImGui::DragFloat("Offset Factor", &renderer.GI_offsetFactor, 0.1f, 0.1f, 10.0f);
+		
 		ImGui::EndMenu();
 	}
 }

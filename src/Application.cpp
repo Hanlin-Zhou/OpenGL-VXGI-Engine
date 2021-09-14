@@ -2,8 +2,8 @@
 
 bool Application::hideUI = false;
 bool Application::fullscreen = false;
-unsigned int Application::windowWidth = 1024;
-unsigned int Application::windowHeight = 1024;
+unsigned int Application::windowWidth = 1920;
+unsigned int Application::windowHeight = 1080;
 int Application::leftMouseDown = 0;
 int Application::rightMouseDown = 0;
 float Application::rotateSensitivity = 0.6;

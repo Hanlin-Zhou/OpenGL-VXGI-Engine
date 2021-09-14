@@ -117,7 +117,9 @@ private:
 	Shader MipmapShader;
 	Shader ConeTracingShader;
 
-	float GI_offsetFactor;
+	float GI_OcclusionOffsetFactor;
+	float GI_DiffuseOffsetFactor;
+	float GI_SpecularOffsetFactor;
 	float GI_SpecularAperture;
 	float GI_DiffuseAperture;
 	float GI_OcculsionAperture;
@@ -146,6 +148,7 @@ private:
 	void initializeBuffers();
 	void loadModel();
 	void loadHDRI(bool loaded);
+	void voxelize();
 	void LoadShaders();
 	void Draw();
 
