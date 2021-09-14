@@ -1,8 +1,10 @@
-# OpenGl VXGI Engine
-OpenGl Global Illumination real-time rendering study project.
+# OpenGl Voxel Cone Tracing Global Illumination Engine
+OpenGl Global Illumination real-time rendering study project. [WIP]
 
 https://learnopengl.com
+
 https://research.nvidia.com/publication/efficient-sparse-voxel-octrees
+
 https://research.nvidia.com/publication/interactive-indirect-illumination-using-voxel-cone-tracing
 
 Features:
