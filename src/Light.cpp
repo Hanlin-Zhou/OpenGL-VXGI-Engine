@@ -2,7 +2,7 @@
 
 
 Light::Light() {
-	position = glm::vec3(1, 10.3, 0.5);
+	position = glm::vec3(1, 10.6, 0.5);
 	normal = glm::vec3(0, -1, 0);
 	strength = 1000;
 }
