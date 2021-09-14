@@ -13,6 +13,7 @@ Features:
 - [X] SSAO
 - [ ] IBL
 - [ ] PBR
+- [ ] Post Processing
 
 Build with CMAKE.
 
