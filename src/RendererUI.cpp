@@ -102,11 +102,16 @@ void DebugMenu(Renderer &renderer) {
 
 void SVOGIDebugMenu(Renderer& renderer) {
 	if (ImGui::BeginMenu("GI Debug")) {
-		ImGui::DragFloat("Offset Factor", &renderer.GI_offsetFactor, 0.1f, 0.1f, 10.0f);
+		
 		ImGui::DragFloat("Specular Aperture", &renderer.GI_SpecularAperture, 0.02f, 0.02f, 1.5f);
+		ImGui::Separator();
 		ImGui::DragFloat("Diffuse Aperture", &renderer.GI_DiffuseAperture, 0.02f, 0.02f, 1.5f);
+		ImGui::DragFloat("Diffuse Cone Angle", &renderer.GI_DiffuseConeAngleMix, 0.01f, 0.01f, 1.0f);
+		ImGui::Separator();
 		ImGui::DragFloat("Occulsion Aperture", &renderer.GI_OcculsionAperture, 0.01f, 0.01f, 1.5f);
+		ImGui::Separator();
 		ImGui::DragFloat("Step Size", &renderer.GI_stepSize, 0.1f, 0.02f, 10.0f);
+		ImGui::DragFloat("Offset Factor", &renderer.GI_offsetFactor, 0.1f, 0.1f, 10.0f);
 		ImGui::EndMenu();
 	}
 }

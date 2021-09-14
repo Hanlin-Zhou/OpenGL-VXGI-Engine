@@ -27,6 +27,7 @@ uniform float SpecularAperture;
 uniform float DiffuseAperture;
 uniform float OcculsionAperture;
 uniform float stepSize;
+uniform float DiffuseConeAngleMix;
 
 vec3 convWorldPosToVoxelPos(vec3 pos){
      vec4 temp = ProjectMat * vec4(pos, 1.0);
@@ -52,7 +53,7 @@ vec4 ConeTracing(vec3 origin, vec3 direction, float aperture){
     while(occlusion < 1 && t < max_t){
         vec4 s = sampleVoxel(currPos, diameter);
         acc += (1.0 - occlusion) * s.a * s.xyz;
-        occlusion += (1.0 - occlusion) * s.a;
+        occlusion += s.a;
         //step
         // t += diameter / 2.0;
         // diameter = t * 0.222;
@@ -75,7 +76,7 @@ float OcclusionConeTracing(vec3 pos, vec3 lightPos, vec3 normal, float aperture)
     float diameter = 2.0 * t * tan(aperture/ 2.0);
     while(occlusion < 1.0 && t < max_t) {
         float s = sampleVoxel(currPos, diameter).a;
-        occlusion += s;
+        occlusion += (1.0 - occlusion) * s;
          t += stepSize * diameter;
         diameter = 2 * t * tan(aperture/ 2.0);
         currPos = pos + t * lightDir;
@@ -89,17 +90,12 @@ vec4 IndirectSpecularLighting(vec3 pos, vec3 traceDir){
 }
 
 vec4 IndirectDiffuseLighting(vec3 pos, vec3 normal, vec3 tangent, vec3 bitangent){
-   vec3 dir1 = mix(normal, tangent, 0.666);
-   vec3 dir2 = mix(normal, -tangent, 0.666);
-   vec3 dir3 = mix(normal, bitangent, 0.666);
-   vec3 dir4 = mix(normal, -bitangent, 0.666);
-   vec3 dir5 = normal;
-   vec4 color = ConeTracing(pos, mix(normal, tangent, 0.666), DiffuseAperture);
-   color += ConeTracing(pos, mix(normal, -tangent, 0.666), DiffuseAperture);
-   color += ConeTracing(pos, mix(normal, bitangent, 0.666), DiffuseAperture);
-   color += ConeTracing(pos, mix(normal, -bitangent, 0.666), DiffuseAperture);
+   vec4 color = ConeTracing(pos, mix(normal, tangent, DiffuseConeAngleMix), DiffuseAperture);
+   color += ConeTracing(pos, mix(normal, -tangent, DiffuseConeAngleMix), DiffuseAperture);
+   color += ConeTracing(pos, mix(normal, bitangent, DiffuseConeAngleMix), DiffuseAperture);
+   color += ConeTracing(pos, mix(normal, -bitangent, DiffuseConeAngleMix), DiffuseAperture);
    color += ConeTracing(pos, normal, DiffuseAperture);
-   color /= 5.0;
+   color.xyz /= 5.0;
    return color;
 }
 
@@ -124,6 +120,7 @@ void main()
     float Valid = 1.0 - FragPos.a;
 //    vec3 skyboxColor = texture(skybox, TexCoords).rgb;
     vec3 normal = texture(gNormal, TexCoords).rgb;
+    float smoothMat = 1.0 - texture(gNormal, TexCoords).a;
     vec3 tangent = texture(gTangent, TexCoords).rgb;
     vec3 bitangent = normalize(cross(normal, tangent));
     vec3 viewDir = normalize(viewPos - FragPos.xyz);
@@ -138,9 +135,8 @@ void main()
     vec4 IndirectDiffuse = IndirectDiffuseLighting(FragPos.xyz, normal, tangent, bitangent);
     vec4 Direct = DirectLighting(FragPos.xyz, viewDir, normal, lightPos);
     float occlu = OcclusionConeTracing(FragPos.xyz, lightPos, normal, OcculsionAperture);
-    // FragColor = vec4(occlu, occlu, occlu, 1.0);
-    FragColor = (occlu * Direct + 0.5 * IndirectSpecular) * Valid;
+    vec4 Indirect = smoothMat * IndirectSpecular + (1.0 - smoothMat) * IndirectDiffuse;
+    FragColor = (occlu * Direct + Indirect) * Valid;
     // FragColor = IndirectDiffuse * Valid;
-    // FragColor = sampleVoxel(FragPos.xyz, 1.0);
     // FragColor.rgb = pow(FragColor.rgb, vec3(1.0/gamma));
 }  

@@ -122,6 +122,7 @@ private:
 	float GI_DiffuseAperture;
 	float GI_OcculsionAperture;
 	float GI_stepSize;
+	float GI_DiffuseConeAngleMix;
 
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;

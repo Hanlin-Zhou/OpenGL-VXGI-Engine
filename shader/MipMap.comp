@@ -20,13 +20,15 @@ const ivec3 offsets[] = ivec3[8]
 vec4 fetchSum(ivec3 pos){
 	vec3 sum = vec3(0.0);
 	float asum = 0.0;
+	float acount = 0.0;
     for(int i = 0; i < 8; i++)
 	{
 		vec4 color = imageLoad(LastRadiance3D, pos + offsets[i]);
 		sum += color.xyz;
 		asum += color.a;
+		acount += step(0.01, color.a);
 	}
-	return vec4(sum/asum, asum/8.0);
+	return vec4(sum/acount, asum/8.0);
 }
 
 void main()

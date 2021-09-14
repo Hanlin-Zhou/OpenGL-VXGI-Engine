@@ -5,13 +5,13 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	state = 0;
 	myLight = Light();
 
-	// modelPath = "./model/sponza/sponza.obj";
-	modelPath = "./model/opengl_render_testing.obj";
+	modelPath = "./model/sponza/sponza.obj";
+	// modelPath = "./model/opengl_render_testing.obj";
 	HDRIPath = "./hdri/purple_sky.hdr";
 
-	MSAA = true;
+	MSAA = false;
 	MSAASample = 4;
-	PCSS = true;
+	PCSS = false;
 	ShadowBluring = false;
 	PeterPan = false;
 	SSAO = true;
@@ -27,7 +27,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	shadowWidth = 2048;
 	shadowHeight = 2048;
 
-	SVOGI = false;
+	SVOGI = true;
 
 	vLevel = 8;
 	VoxelSize = pow(2, 8);
@@ -38,6 +38,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	GI_DiffuseAperture = 1.04;
 	GI_OcculsionAperture = 0.10;
 	GI_stepSize = 0.3;
+	GI_DiffuseConeAngleMix = 0.666;
 }
 
 Renderer::~Renderer() {
@@ -469,6 +470,7 @@ void Renderer::Draw() {
 		ConeTracingShader.setFloat("SpecularAperture", GI_SpecularAperture);
 		ConeTracingShader.setFloat("DiffuseAperture", GI_DiffuseAperture);
 		ConeTracingShader.setFloat("OcculsionAperture", GI_OcculsionAperture);
+		ConeTracingShader.setFloat("DiffuseConeAngleMix", GI_DiffuseConeAngleMix);
 		ConeTracingShader.setFloat("stepSize", GI_stepSize);
 		float VoxelCellSize = MaxCoord * 2.0 / VoxelSize;
 		ConeTracingShader.setFloat("VoxelCellSize", VoxelCellSize);
