@@ -1,22 +1,18 @@
 # OpenGl Voxel Cone Tracing Global Illumination Engine
-OpenGl Global Illumination real-time rendering study project. [WIP]
+OpenGl Global Illumination real-time rendering study project. **WIP**
 
-https://learnopengl.com
-
-https://research.nvidia.com/publication/efficient-sparse-voxel-octrees
-
+https://learnopengl.com  
+https://research.nvidia.com/publication/efficient-sparse-voxel-octrees  
 https://research.nvidia.com/publication/interactive-indirect-illumination-using-voxel-cone-tracing
 
 Features:
-- VXGI
-- MSAA
-- PCSS Soft Shadow
-- Cone Traced Soft Shadow
-- SSAO
-
-TODO:
-- IBL
-- PBR
+- [X] VXGI
+- [X] MSAA
+- [X] PCSS Soft Shadow
+- [X] Cone Traced Soft Shadow
+- [X] SSAO
+- [ ] IBL
+- [ ] PBR
 
 Build with CMAKE.
 
