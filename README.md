@@ -6,6 +6,7 @@ https://research.nvidia.com/publication/efficient-sparse-voxel-octrees
 https://research.nvidia.com/publication/interactive-indirect-illumination-using-voxel-cone-tracing
 
 Features:
+- [X] Deferred Pipeline
 - [X] VXGI
 - [X] MSAA
 - [X] PCSS Soft Shadow
