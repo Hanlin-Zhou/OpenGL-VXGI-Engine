@@ -18,8 +18,6 @@ Features:
 
 Build with CMAKE.
 
-Current Progress 9/13/2021
-![Ray_yi5J6C0VoS](https://user-images.githubusercontent.com/52555899/133330788-37879bf9-d6b8-4b15-8f6f-20e7b180f456.jpg)
-![Ray_yNeINhGZWX](https://user-images.githubusercontent.com/52555899/133330795-8762caf0-2883-4dcd-ac46-aeccad11f414.jpg)
-![Ray_o5LHPm2TsO](https://user-images.githubusercontent.com/52555899/133330805-27f5f08c-c3bd-44bf-976f-b4523a5c61af.jpg)
-![Ray_he2nIQwVcL](https://user-images.githubusercontent.com/52555899/133330811-33f91c0e-d1be-4f7a-b729-2f97b65a3d29.jpg)
+Current Progress 09/2021
+![Ray_FF5zCrvOaC](https://user-images.githubusercontent.com/52555899/133537689-96d084f1-d2ad-475b-a58e-071a2f7fe9aa.jpg)
+![Ray_KOtptVEybr](https://user-images.githubusercontent.com/52555899/133537703-2eca3d9c-b403-45aa-9a06-473d480c51ac.jpg)
