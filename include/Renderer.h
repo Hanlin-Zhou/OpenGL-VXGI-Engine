@@ -74,8 +74,10 @@ private:
 	unsigned int ds_gNormal;
 	unsigned int ds_gAlbedoSpec;
 	unsigned int ds_gTangent;
+	unsigned int ds_gMSAA;
 	unsigned int ds_gViewPos;
 	Shader DownSampleShader;
+	Shader MSAADetectShader;
 
 	// SSAO Buffer
 	unsigned int ssaoFBO;
@@ -110,6 +112,7 @@ private:
 	unsigned int Radiance3D;
 	float MaxCoord;
 	unsigned int vLevel;
+	unsigned int workgroupsize;
 	int VoxelSize;
 	glm::mat4 VoxelProjectMat;
 	Shader VoxelizeShader;
@@ -138,6 +141,7 @@ private:
 
 	// Debug
 	unsigned int DebugOut;
+	float DebugWindowSize;
 	Shader DebugShader;
 
 	// misc
@@ -149,6 +153,18 @@ private:
 	void loadModel();
 	void loadHDRI(bool loaded);
 	void voxelize();
+	void gBufferDraw();
+	void SSAODraw();
+	void BlurDraw(unsigned int texture);
+	void SkyBoxDraw();
+	void ShadowMapDraw();
+	void LightInjection();
+	void MipmapBuild(unsigned int level);
+	void ConeTrace(unsigned int buffer);
+	void gBufferLightingPassDraw();
+	void gBufferCombineDraw(unsigned int buffer);
+	void VoxelVisualize();
+	void DebugWindowDraw(unsigned int texture);
 	void LoadShaders();
 	void Draw();
 

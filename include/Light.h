@@ -11,5 +11,5 @@ public:
 	void setPos(glm::vec3 pos);
 	glm::vec3 getPos();
 	void setState(bool onoff);
-	void setIntensity(float i);
+	// void setIntensity(float i);
 };

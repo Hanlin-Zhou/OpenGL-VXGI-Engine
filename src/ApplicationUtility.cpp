@@ -102,6 +102,18 @@ unsigned int bindDepthMap(unsigned int FBO, int width, int height) {
 }
 
 
+unsigned int bindStencilMap(unsigned int FBO, int width, int height) {
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	unsigned int StencilMap;
+	glGenTextures(1, &StencilMap);
+	glBindTexture(GL_TEXTURE_2D, StencilMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, StencilMap, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return StencilMap;
+}
+
+
 void attachRBOToBuffer(unsigned int FBO, int width, int height, GLenum component, GLenum attachment, unsigned int samples) {
 	unsigned int rboDepth;
 	glGenRenderbuffers(1, &rboDepth);

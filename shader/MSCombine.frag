@@ -10,6 +10,7 @@ uniform sampler2DMS gPosition;
 uniform sampler2DMS gNormal;
 uniform sampler2DMS gAlbedoSpec;
 uniform sampler2DMS Shadow;
+uniform sampler2D ds_gMSAA;
 
 uniform vec3 lightPos;
 
@@ -22,39 +23,39 @@ void main()
 {           
     ivec2 MScoord = ivec2(TexCoords * textureSize(gPosition));
     vec3 sumLight = vec3(0.0);
-    
+    int run = 1;
+    if (texture(ds_gMSAA, TexCoords).r == 1.0){
+        run  = 4;
+    }
     int count = 0;
-    for (int i = 0; i < MSAA_Sample; i++){
+    for (int i = 0; i < run; i++){
         vec3 FragPos = texelFetch(gPosition, MScoord, i).rgb;
         float invalid = texelFetch(gPosition, MScoord, i).a;
         vec3 skyboxColor = texture(skybox, TexCoords).rgb;
         vec3 color = texelFetch(gAlbedoSpec, MScoord, i).rgb;
         vec3 normal = texelFetch(gNormal, MScoord, i).rgb;
         float ks = texelFetch(gAlbedoSpec, MScoord, i).a;
-        vec3 lightColor = vec3(1.0);
-        vec3 lightDir = normalize(lightPos - FragPos);
-        float falloff = 1000.0/(4.0 * 3.1415 * length(lightPos - FragPos) * length(lightPos - FragPos));
-        float diff = max(dot(lightDir, normal), 0.0);
-        float diffuse = diff * falloff;
-        vec3 viewDir = normalize(viewPos - FragPos);
-        float spec;
-        vec3 halfwayDir = normalize(lightDir + viewDir);  
-        spec = pow(max(dot(normal, halfwayDir), 0.0), 10.0);
-        float specular = spec * ks * falloff;
         float shadow = texelFetch(Shadow, MScoord, i).r;
-        vec3 lighting = shadow * (diffuse + specular) * color;
-        if (invalid == 1.0){
-            sumLight += skyboxColor;
-        }else{
-            sumLight += lighting;
-        }
+
+        vec3 fragToLight = lightPos - FragPos;
+        float lightDist = length(fragToLight);
+        vec3 lightDir = normalize(fragToLight);
+        float falloff = 1000.0/(4.0 * 3.1415 * lightDist * lightDist);
+        float diffuse = max(dot(lightDir, normal), 0.0) * (1.0 - ks);
+        vec3 viewDir = normalize(viewPos - FragPos);
+        vec3 halfwayDir = normalize(lightDir + viewDir);  
+        float specular = pow(max(dot(normal, halfwayDir), 0.0), 10.0) * ks;
+        vec3 lighting = shadow * falloff * (diffuse + specular) * color;
+        // skybox
+        lighting = (1.0 - invalid) * lighting + invalid * skyboxColor;
+        // tonemap
+        lighting = lighting / (lighting + vec3(1.0));
+        sumLight += clamp(lighting, 0.0, 1.0);
     }
-    // FragColor = vec4(lighting, 1.0);
-    sumLight /= float(MSAA_Sample);
-    if (HDR){
-        sumLight = sumLight / (sumLight + vec3(1.0));
-        float ssao = texture(SSAO, TexCoords).r;
-        sumLight *= ssao;
-    }
+    sumLight /= float(run);
     FragColor = vec4(sumLight, 1);
+
+//    if (texture(ds_gMSAA, TexCoords).r == 1.0){
+//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+//    }
 }  

@@ -3,15 +3,14 @@ out vec4 FragColor;
 
 in vec2 TexCoords;
 uniform vec3 viewPos;
-// uniform bool HDR;
 
-uniform sampler2D gPosition;
-uniform sampler2D gNormal;
-uniform sampler2D gAlbedoSpec;
-uniform sampler2D gTangent;
-uniform sampler2D Shadow;
+uniform sampler2DMS gPosition;
+uniform sampler2DMS gNormal;
+uniform sampler2DMS gAlbedoSpec;
+uniform sampler2DMS gTangent;
 uniform sampler3D Radiance3D;
 uniform sampler2D skybox;
+uniform sampler2D ds_gNormal;
 
 uniform vec3 lightPos;
 uniform float lightStrength;
@@ -107,9 +106,8 @@ vec4 IndirectDiffuseLighting(vec3 pos, vec3 normal, vec3 tangent, vec3 bitangent
 }
 
 
-vec4 DirectLighting(vec3 color, vec3 pos, vec3 viewDir, vec3 normal, vec3 lightPos){
+vec4 DirectLighting(vec3 color, vec3 pos, vec3 viewDir, vec3 normal, vec3 lightPos, float ks){
     vec3 PosToLight = lightPos - pos;
-    float ks = texture(gAlbedoSpec, TexCoords).a;
     float LightDist = length(PosToLight);
     vec3 lightDir = normalize(PosToLight);
     float diff = max(dot(lightDir, normal), 0.0) * (1.0 - ks);
@@ -122,21 +120,30 @@ vec4 DirectLighting(vec3 color, vec3 pos, vec3 viewDir, vec3 normal, vec3 lightP
 
 void main()
 {           
-    vec4 FragPos = texture(gPosition, TexCoords);
-    vec4 color = texture(gAlbedoSpec, TexCoords);
-    float Valid = 1.0 - FragPos.a;
-    vec3 skyboxColor = texture(skybox, TexCoords).rgb;
-    vec3 normal = texture(gNormal, TexCoords).rgb;
-    vec3 tangent = texture(gTangent, TexCoords).rgb;
-    vec3 bitangent = normalize(cross(normal, tangent));
-    vec3 viewDir = normalize(viewPos - FragPos.xyz);
-    vec3 specularTrace = normalize(reflect(-viewDir, normal));
-    vec4 IndirectSpecular = IndirectSpecularLighting(FragPos.xyz, normal, specularTrace);
-    vec4 IndirectDiffuse = IndirectDiffuseLighting(FragPos.xyz, normal, tangent, bitangent);
-    vec4 Direct = DirectLighting(color.xyz, FragPos.xyz, viewDir, normal, lightPos);
-    float occlu = OcclusionConeTracing(FragPos.xyz, lightPos, normal, OcculsionAperture);
-    vec4 Indirect = color.a * IndirectSpecular + (1.0 - color.a) * IndirectDiffuse;
-    FragColor = (occlu * Direct + vec4(color.xyz, 1.0) * Indirect) * Valid + (1.0 - Valid) * vec4(skyboxColor, 1.0);
-    FragColor.xyz = FragColor.xyz / (FragColor.xyz + vec3(1.0));
+    ivec2 MScoord = ivec2(TexCoords * textureSize(gPosition));
+    vec3 sum = vec3(0.0);
+    int run = 1 + 3 * int(texture(ds_gNormal, TexCoords).r);
+
+    for (int i = 0; i < run; i++){
+        vec4 FragPos = texelFetch(gPosition, MScoord, i);
+        vec4 color = texelFetch(gAlbedoSpec, MScoord, i);
+        float Valid = 1.0 - FragPos.a;
+        vec3 skyboxColor = texture(skybox, TexCoords).rgb;
+        vec3 normal = texelFetch(gNormal, MScoord, i).rgb;
+        vec3 tangent = texelFetch(gTangent, MScoord, i).rgb;
+
+        vec3 bitangent = normalize(cross(normal, tangent));
+        vec3 viewDir = normalize(viewPos - FragPos.xyz);
+        vec3 specularTrace = normalize(reflect(-viewDir, normal));
+        vec4 IndirectSpecular = IndirectSpecularLighting(FragPos.xyz, normal, specularTrace);
+        vec4 IndirectDiffuse = IndirectDiffuseLighting(FragPos.xyz, normal, tangent, bitangent);
+        vec4 Direct = DirectLighting(color.xyz, FragPos.xyz, viewDir, normal, lightPos, color.a);
+        float occlu = OcclusionConeTracing(FragPos.xyz, lightPos, normal, OcculsionAperture);
+        vec4 Indirect = color.a * IndirectSpecular + (1.0 - color.a) * IndirectDiffuse;
+        vec4 lighting = (occlu * Direct + vec4(color.xyz, 1.0) * Indirect) * Valid + (1.0 - Valid) * vec4(skyboxColor, 1.0);
+        lighting.xyz = lighting.xyz / (lighting.xyz + vec3(1.0));
+        sum += lighting.xyz;
+    }
+    FragColor = vec4(sum / float(run), 1.0);
     // FragColor = IndirectSpecular  * Valid;
 }  

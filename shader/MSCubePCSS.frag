@@ -1,5 +1,5 @@
 #version 430 core
-layout (location = 0) out float FragColor;
+
 layout(binding = 0, r8) writeonly uniform image2DMS shadowImage;
 
 in vec2 TexCoords;

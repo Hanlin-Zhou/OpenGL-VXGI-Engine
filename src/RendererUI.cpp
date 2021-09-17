@@ -98,6 +98,7 @@ void RendererMenu(Renderer &renderer) {
 
 void DebugMenu(Renderer &renderer) {
 	if (ImGui::BeginMenu("Debug")) {
+		ImGui::DragFloat("Debug Window Size", &renderer.DebugWindowSize, 0.02f, -1.0f, 0.9f);
 		ImGui::Checkbox("Show Debug Overlay", &renderer.ShowDebug);
 		ImGui::EndMenu();
 	}
