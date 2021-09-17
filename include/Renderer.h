@@ -13,6 +13,7 @@
 #include <Light.h>
 #include <Camera.h>
 #include <GLFW/glfw3.h>
+#include <json.hpp>
 
 class Renderer {
 private:

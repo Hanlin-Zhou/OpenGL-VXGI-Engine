@@ -5,20 +5,24 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	state = 0;
 	myLight = Light();
 
-	modelPath = "./model/sponza/sponza.obj";
-	// modelPath = "./model/opengl_render_testing.obj";
-	HDRIPath = "./hdri/purple_sky.hdr";
+	using json = nlohmann::json;
+	std::ifstream inputfile("./json/RendererInitSetting.json");
+	json RIsetting;
+	inputfile >> RIsetting;
 
-	MSAA = false;
-	MSAASample = 4;
-	PCSS = false;
+	modelPath = RIsetting["modelPath"];
+	HDRIPath = RIsetting["HDRIPath"];
+
+	MSAA = RIsetting["MSAA"];
+	MSAASample = RIsetting["MSAASample"];
+	PCSS = RIsetting["PCSS"];
 	ShadowBluring = false;
 	PeterPan = false;
-	SSAO = false;
+	SSAO = RIsetting["SSAO"];
 	HDR = false;
-	SkyBox = true;
+	SkyBox = RIsetting["SkyBox"];
 	ShowDebug = false;
-	GLDebugOutput = false;
+	GLDebugOutput = RIsetting["GLDebugOutput"];
 	ShowTexture = true;
 	ShowNormal = true;
 	renderWidth = width;
@@ -27,7 +31,7 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	shadowWidth = 2048;
 	shadowHeight = 2048;
 
-	SVOGI = true;
+	SVOGI = RIsetting["SVOGI"];
 
 	vLevel = 8;
 	VoxelSize = pow(2, 8);

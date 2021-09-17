@@ -1,0 +1,11 @@
+{
+    "GLDebugOutput": true,
+    "HDRIPath": "./hdri/purple_sky.hdr",
+    "MSAA": true,
+    "MSAASample": 4,
+    "PCSS": false,
+    "SSAO": true,
+    "SVOGI": true,
+    "SkyBox": true,
+    "modelPath": "./model/sponza/sponza.obj"
+}

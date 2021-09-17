@@ -1,6 +1,6 @@
 #include <RendererUI.h>
-#include <tinyfiledialogs.h>
 #include <stdio.h>
+
 
 void RendererInitSetting(Renderer &renderer) {
 	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, { 0.5f, 0.5f });
@@ -52,6 +52,23 @@ void RendererInitSetting(Renderer &renderer) {
 
 	if (ImGui::Button("Create")) {
 		renderer.state = 1;
+	}
+	if (ImGui::Button("Save Setting")) {
+		ImGui::SameLine(150);
+		ImGui::Text("Saved!");
+		std::ofstream outputfile("./json/RendererInitSetting.json");
+		using json = nlohmann::json;
+		json RIsetting;
+		RIsetting["MSAA"] = renderer.MSAA;
+		RIsetting["MSAASample"] = renderer.MSAASample;
+		RIsetting["SVOGI"] = renderer.SVOGI;
+		RIsetting["PCSS"] = renderer.PCSS;
+		RIsetting["SSAO"] = renderer.SSAO;
+		RIsetting["SkyBox"] = renderer.SkyBox;
+		RIsetting["GLDebugOutput"] = renderer.GLDebugOutput;
+		RIsetting["modelPath"] = renderer.modelPath;
+		RIsetting["HDRIPath"] = renderer.HDRIPath;
+		outputfile << std::setw(4) << RIsetting << std::endl;
 	}
 	ImGui::End();
 
