@@ -8,3 +8,7 @@ void ControlMenu(Application& application) {
 		ImGui::EndMenu();
 	}
 }
+
+void ShowStatus() {
+	ImGui::Text("%.1f MS | %.1f FPS", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+}

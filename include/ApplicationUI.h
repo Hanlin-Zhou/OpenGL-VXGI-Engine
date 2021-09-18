@@ -4,3 +4,5 @@
 
 
 void ControlMenu(Application &app);
+
+void ShowStatus();

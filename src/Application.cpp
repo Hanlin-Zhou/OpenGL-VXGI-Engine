@@ -93,6 +93,7 @@ void Application::renderUI() {
 	if (currRenderer.getState() == 2 && !hideUI) {
 		glfwSetWindowAttrib(glfw_window, GLFW_RESIZABLE, GL_FALSE);
 		ImGui::BeginMainMenuBar();
+		ShowStatus();
 		LoadMenu(currRenderer);
 		ModelMenu(currRenderer);
 		RendererMenu(currRenderer);

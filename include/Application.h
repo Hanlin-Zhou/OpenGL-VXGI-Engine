@@ -52,4 +52,5 @@ public:
 	void Run();
 
 	friend void ControlMenu(Application &application);
+	friend void ShowStatus();
 };
