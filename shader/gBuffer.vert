@@ -14,18 +14,19 @@ out VS_OUT {
 
 uniform mat4 proj;
 uniform mat4 view;
+uniform mat4 model;
 
 void main()
 {    
-    //vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
-    vs_out.FragPos = aPos;
-    // vs_out.Normal = transpose(inverse(mat3(model))) * aNormal;
-    vs_out.Normal = aNormal;
+    vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
+    // vs_out.FragPos = aPos;
+    vs_out.Normal = normalize(transpose(inverse(mat3(model))) * aNormal);
+    // vs_out.Normal = aNormal;
     vs_out.TexCoords = aTexCoords;
     vec3 Ntangent = normalize(aTangent);
-    vec3 B = normalize(cross(normalize(aNormal), Ntangent));
+    vec3 B = normalize(cross(vs_out.Normal, Ntangent));
     
-    vs_out.TBN = mat3(B, Ntangent, normalize(aNormal));
+    vs_out.TBN = mat3(B, Ntangent, vs_out.Normal);
     vs_out.Tangent = B;
-    gl_Position = proj * view * vec4(aPos, 1.0);
+    gl_Position = proj * view * model * vec4(aPos, 1.0);
 }

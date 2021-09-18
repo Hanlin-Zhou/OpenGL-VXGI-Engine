@@ -5,6 +5,8 @@ layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 layout(binding = 0, rgba8) writeonly uniform image3D Radiance3D;
 uniform sampler3D Albedo3D;
 uniform sampler3D Normal3D;
+uniform sampler3D DynamicAlbedo3D;
+uniform sampler3D DynamicNormal3D;
 
 uniform samplerCube depthCubemap;
 uniform float far_plane;
@@ -44,19 +46,23 @@ void main()
 
 	ivec3 VoxelPos = ivec3(gl_GlobalInvocationID);
 	vec4 color = texelFetch(Albedo3D, VoxelPos, 0);
-	if (color.a == 0.0f){
+	vec4 d_color = texelFetch(DynamicAlbedo3D, VoxelPos, 0);
+	if (color.a + d_color.a == 0.0f){
 		return;
 	}
 	vec3 normal = DecodeNormal(texelFetch(Normal3D, VoxelPos, 0).xyz);
+	vec3 d_normal = DecodeNormal(texelFetch(DynamicNormal3D, VoxelPos, 0).xyz);
 	vec3 worldPos = volPosToWorldPos(VoxelPos);
 	float visibility = calculateShadow(lightPos, worldPos);
 	vec3 lightToFrag = lightPos - worldPos;
 	vec3 lightDir = normalize(lightToFrag);
 	float lightDist = length(lightToFrag);
     float falloff = lightStrength/(4.0 * 3.1415 * lightDist * lightDist);
-    float diff = max(dot(lightDir, normal), 0.0);
-    float diffuse = diff * falloff;
-	vec4 lighting = vec4(visibility * diffuse * color.xyz, 1.0);
+    vec3 diffuseColor = max(dot(lightDir, normal), 0.0) * color.xyz;
+	vec3 d_diffuseColor = max(dot(lightDir, d_normal), 0.0) * d_color.xyz;
+	float ratio = d_color.a / (d_color.a + color.a);
+	vec4 lighting = vec4(visibility * (d_diffuseColor * ratio + diffuseColor * ( 1.0 - ratio)), 1.0);
+
 	imageStore(Radiance3D, VoxelPos, lighting);
 
 }

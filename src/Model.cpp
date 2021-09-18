@@ -222,3 +222,11 @@ void Model::updateMaxPos(glm::vec3 pos) {
 	float max_comp = glm::compMax(glm::abs(pos));
 	max_pos = fmax(max_pos, max_comp);
 }
+
+
+glm::mat4 Model::getModelMatrix() {
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(scale, scale, scale));
+	modelMatrix = glm::translate(modelMatrix, offset);
+	return modelMatrix;
+}

@@ -1,11 +1,11 @@
 {
-    "GLDebugOutput": true,
+    "GLDebugOutput": false,
     "HDRIPath": "./hdri/purple_sky.hdr",
-    "MSAA": true,
-    "MSAASample": 4,
+    "MSAA": false,
+    "MSAASample": 1,
     "PCSS": false,
-    "SSAO": true,
+    "SSAO": false,
     "SVOGI": true,
     "SkyBox": true,
-    "modelPath": "./model/sponza/sponza.obj"
+    "modelPath": "Z:\\Classical Models\\CornellBox\\B_CornellBox_Scaled.obj"
 }

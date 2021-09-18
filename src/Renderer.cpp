@@ -49,6 +49,8 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 	GI_OcculsionAperture = 0.10;
 	GI_stepSize = 0.3;
 	GI_DiffuseConeAngleMix = 0.666;
+
+	MaxCoord = 0.0;
 }
 
 Renderer::~Renderer() {
@@ -76,8 +78,6 @@ void Renderer::run() {
 }
 
 void Renderer::initializeBuffers() {
-	glFinish();
-	double startTime = glfwGetTime();
 	if (GLDebugOutput) {
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -192,7 +192,7 @@ void Renderer::initializeBuffers() {
 		}
 		glGenFramebuffers(1, &DepthCubeFBO);
 		DepthCubeMap = bindCubeDepthMap(DepthCubeFBO, shadowWidth, shadowHeight);
-		SProj = glm::perspective(glm::radians(90.0), (double)shadowWidth / (double)shadowHeight, 0.1, 80.0);
+		SProj = glm::perspective(glm::radians(90.0), (double)shadowWidth / (double)shadowHeight, 0.1, (double)cam.far_plane);
 	}
 
 	// HDRI
@@ -208,6 +208,7 @@ void Renderer::initializeBuffers() {
 
 		glGenFramebuffers(1, &SVOGIFBO);
 		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+
 		glGenTextures(1, &Albedo3D);
 		glBindTexture(GL_TEXTURE_3D, Albedo3D);
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -220,6 +221,18 @@ void Renderer::initializeBuffers() {
 		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
 		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_3D, Normal3D, 0, 0);
 
+		glGenTextures(1, &DynamicAlbedo3D);
+		glBindTexture(GL_TEXTURE_3D, DynamicAlbedo3D);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_3D, DynamicAlbedo3D, 0, 0);
+
+		glGenTextures(1, &DynamicNormal3D);
+		glBindTexture(GL_TEXTURE_3D, DynamicNormal3D);
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_3D, DynamicNormal3D, 0, 0);
+
 		glGenTextures(1, &Radiance3D);
 		glBindTexture(GL_TEXTURE_3D, Radiance3D);
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -229,9 +242,9 @@ void Renderer::initializeBuffers() {
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexStorage3D(GL_TEXTURE_3D, vLevel, GL_RGBA8, VoxelSize, VoxelSize, VoxelSize);
-		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_3D, Radiance3D, 0, 0);
+		glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_3D, Radiance3D, 0, 0);
 
-		voxelize();
+		voxelizeStatic();
 	}
 }
 
@@ -253,6 +266,7 @@ void Renderer::Draw() {
 	}
 
 	if (SVOGI) {
+		voxelizeDynamic();
 		LightInjection();
 		MipmapBuild(6);
 		ConeTrace(0);
@@ -263,7 +277,7 @@ void Renderer::Draw() {
 		gBufferCombineDraw(0);
 	}
 
-	if (SVOGI || ShowDebug) {
+	if (SVOGI && ShowDebug) {
 		VoxelVisualize();
 	}
 
@@ -274,7 +288,34 @@ void Renderer::Draw() {
 
 
 void Renderer::loadModel() {
-	myModel = Model(modelPath.c_str());
+	// Model new_model = Model(modelPath.c_str());
+	modelList.clear();
+	modelList.emplace_back(modelPath.c_str());
+	MaxCoord = modelList[0].max_pos + 1.0;
+	if (SVOGI) {
+		modelList[0].isStatic = true;
+		modelList[0].scale = 50.0 / modelList[0].max_pos;
+		MaxCoord = 50.0;
+		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
+		VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	}
+	
+}
+
+
+void Renderer::addModel() {
+	// Model new_model = Model(modelPath.c_str());
+	modelList.emplace_back(modelPath.c_str());
+}
+
+
+void Renderer::ModelListDraw(Shader shader) {
+	for (int i = 0; i < modelList.size(); i++)
+	{
+		glm::mat4 modelMat = modelList[i].getModelMatrix();
+		shader.setMat4("model", glm::value_ptr(modelMat), false);
+		modelList[i].Draw(shader, ShowTexture, ShowNormal);
+	}
 }
 
 
@@ -298,7 +339,7 @@ void Renderer::gBufferDraw() {
 	gBufferGeoPass.setMat4("proj", glm::value_ptr(proj_mat), false);
 	gBufferGeoPass.setMat4("view", glm::value_ptr(view_mat), false);
 	gBufferGeoPass.setInt("MSAA_Sample", MSAASample);
-	myModel.Draw(gBufferGeoPass, ShowTexture, ShowNormal);
+	ModelListDraw(gBufferGeoPass);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -414,20 +455,20 @@ void Renderer::ShadowMapDraw() {
 	glViewport(0, 0, shadowWidth, shadowHeight);
 	glBindFramebuffer(GL_FRAMEBUFFER, DepthCubeFBO);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	PCSSDepthShader.use();
-	PCSSDepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
+	DepthShader.use();
+	DepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
 	for (unsigned int i = 0; i < 6; ++i)
-		PCSSDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-	PCSSDepthShader.setFloat("far_plane", 80.0);
+		DepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+	DepthShader.setFloat("far_plane", cam.far_plane);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	if (PeterPan) {
 		glCullFace(GL_FRONT);
-		myModel.Draw(PCSSDepthShader, true, true);
+		ModelListDraw(DepthShader);
 		glCullFace(GL_BACK);
 	}
 	else {
-		myModel.Draw(PCSSDepthShader, true, true);
+		ModelListDraw(DepthShader);
 	}
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -443,7 +484,7 @@ void Renderer::LightInjection() {
 	LightInjectionShader.setVec3("lightPos", glm::value_ptr(lightpos));
 	LightInjectionShader.setFloat("lightStrength", myLight.strength);
 	LightInjectionShader.setInt("VoxelSize", VoxelSize);
-	LightInjectionShader.setFloat("far_plane", 80.0);
+	LightInjectionShader.setFloat("far_plane", cam.far_plane);
 	LightInjectionShader.setFloat("MaxCoord", MaxCoord);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
@@ -455,6 +496,12 @@ void Renderer::LightInjection() {
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_3D, Normal3D);
 	LightInjectionShader.setInt("Normal3D", 3);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_3D, DynamicAlbedo3D);
+	LightInjectionShader.setInt("DynamicAlbedo3D", 4);
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_3D, DynamicNormal3D);
+	LightInjectionShader.setInt("DynamicNormal3D", 5);
 	glDispatchCompute(workgroupsize, workgroupsize, workgroupsize);
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -545,15 +592,12 @@ void Renderer::ConeTrace(unsigned int buffer) {
 }
 
 
-void Renderer::voxelize() {
+void Renderer::voxelizeStatic() {
 	float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	glClearTexImage(Albedo3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
 	glClearTexImage(Normal3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
 	glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
-	MaxCoord = myModel.max_pos + 1.0;
-	std::cout << "max coord = " << MaxCoord << std::endl;
-	glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
-	VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	std::cout << "STATIC max coord = " << MaxCoord << std::endl;
 	VoxelizeShader.use();
 	VoxelizeShader.setMat4("ProjectMat", VoxelProjectMat);
 	VoxelizeShader.setInt("VoxelSize", VoxelSize);
@@ -562,10 +606,45 @@ void Renderer::voxelize() {
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glViewport(0, 0, VoxelSize, VoxelSize);
-	myModel.Draw(VoxelizeShader, ShowTexture, ShowNormal);
+	for (int i = 0; i < modelList.size(); i++)
+	{
+		if (modelList[i].isStatic) {
+			glm::mat4 modelMat = modelList[i].getModelMatrix();
+			VoxelizeShader.setMat4("model", glm::value_ptr(modelMat), false);
+			modelList[i].Draw(VoxelizeShader, ShowTexture, ShowNormal);
+		}
+	}
 	glBindTexture(GL_TEXTURE_3D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
+
+void Renderer::voxelizeDynamic() {
+	float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	glClearTexImage(DynamicAlbedo3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+	glClearTexImage(DynamicNormal3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+	glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
+	VoxelizeShader.use();
+	VoxelizeShader.setMat4("ProjectMat", VoxelProjectMat);
+	VoxelizeShader.setInt("VoxelSize", VoxelSize);
+	glBindImageTexture(0, DynamicAlbedo3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(1, DynamicNormal3D, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glViewport(0, 0, VoxelSize, VoxelSize);
+	for (int i = 0; i < modelList.size(); i++)
+	{
+		if (!modelList[i].isStatic) {
+			glm::mat4 modelMat = modelList[i].getModelMatrix();
+			VoxelizeShader.setMat4("model", glm::value_ptr(modelMat), false);
+			modelList[i].Draw(VoxelizeShader, ShowTexture, ShowNormal);
+		}
+	}
+	glBindTexture(GL_TEXTURE_3D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+
 
 void Renderer::gBufferLightingPassDraw() {
 	glViewport(0, 0, renderWidth, renderHeight);
@@ -589,7 +668,7 @@ void Renderer::gBufferLightingPassDraw() {
 	gBufferLightPass.setInt("depthCubemap", 3);
 	glm::vec3 temp_lightpos = myLight.getPos();
 	gBufferLightPass.setVec3("lightPos", glm::value_ptr(temp_lightpos));
-	gBufferLightPass.setFloat("far_plane", 80.0);
+	gBufferLightPass.setFloat("far_plane", cam.far_plane);
 	renderQuad(quadVAO);
 
 	if (ShadowBluring && MSAA) {
@@ -815,7 +894,7 @@ void Renderer::LoadShaders() {
 
 	// PCSS
 	if (PCSS || SVOGI) {
-		PCSSDepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
+		DepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
 		if (MSAA) {
 			gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/MSCubePCSS.frag");
 		}

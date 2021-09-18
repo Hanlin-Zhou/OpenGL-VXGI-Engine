@@ -44,6 +44,8 @@ private:
 
 	Model myModel;
 
+	std::vector<Model> modelList;
+
 	// Path to Model and HDRI
 	std::string modelPath;
 	std::string HDRIPath;
@@ -96,7 +98,7 @@ private:
 	unsigned int DepthCubeFBO;
 	unsigned int DepthCubeMap;
 	glm::mat4 SProj;
-	Shader PCSSDepthShader;
+	Shader DepthShader;
 
 	// SkyBox / HDRI
 	unsigned int HdriFBO;
@@ -110,7 +112,11 @@ private:
 	unsigned int SVOGIFBO;
 	unsigned int Albedo3D;
 	unsigned int Normal3D;
+	unsigned int DynamicAlbedo3D;
+	unsigned int DynamicNormal3D;
 	unsigned int Radiance3D;
+	glm::vec3 MaxVec;
+	glm::vec3 MinVec;
 	float MaxCoord;
 	unsigned int vLevel;
 	unsigned int workgroupsize;
@@ -152,8 +158,10 @@ private:
 
 	void initializeBuffers();
 	void loadModel();
+	void addModel();
 	void loadHDRI(bool loaded);
-	void voxelize();
+	void voxelizeStatic();
+	void voxelizeDynamic();
 	void gBufferDraw();
 	void SSAODraw();
 	void BlurDraw(unsigned int texture);
@@ -168,6 +176,7 @@ private:
 	void DebugWindowDraw(unsigned int texture);
 	void LoadShaders();
 	void Draw();
+	void ModelListDraw(Shader shader);
 
 public:
 	static Camera cam;
@@ -185,6 +194,7 @@ public:
 	friend void RendererInitSetting(Renderer &renderer);
 	friend void LoadMenu(Renderer &renderer);
 	friend void RendererMenu(Renderer &renderer);
+	friend void ModelMenu(Renderer& renderer);
 	friend void DebugMenu(Renderer &renderer);
 	friend void SVOGIDebugMenu(Renderer& renderer);
 };

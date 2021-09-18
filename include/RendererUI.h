@@ -13,3 +13,5 @@ void RendererMenu(Renderer &renderer);
 void DebugMenu(Renderer &renderer);
 
 void SVOGIDebugMenu(Renderer& renderer);
+
+void ModelMenu(Renderer& renderer);
