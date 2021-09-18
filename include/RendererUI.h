@@ -1,7 +1,6 @@
 #pragma once
 #include "imgui.h"
 #include <Renderer.h>
-#include <iomanip>
 #include <tinyfiledialogs.h>
 
 void RendererInitSetting(Renderer &renderer);

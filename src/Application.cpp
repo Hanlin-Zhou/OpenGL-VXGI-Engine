@@ -97,6 +97,7 @@ void Application::renderUI() {
 		ModelMenu(currRenderer);
 		RendererMenu(currRenderer);
 		LightMenu(currRenderer.myLight);
+		CameraMenu(currRenderer.cam);
 		ControlMenu(*this);
 		DebugMenu(currRenderer);
 		SVOGIDebugMenu(currRenderer);

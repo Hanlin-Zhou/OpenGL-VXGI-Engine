@@ -58,10 +58,6 @@ vec4 ConeTracing(vec3 origin, vec3 normal, vec3 direction, float aperture, float
         s.a = 1.0 - pow((1.0 - s.a), diameter / VoxelCellSize);
         acc = occlusion * acc + (1.0 - occlusion) * s.a * s.xyz;
         occlusion += (1.0 - occlusion) * s.a;
-        //step
-        // t += diameter / 2.0;
-        // diameter = t * 0.222;
-        // t += diameter / 2.0;
         t += stepSize * diameter;
         diameter = 2 * t * tan(aperture/ 2.0);
         currPos = origin + t * direction;
@@ -86,7 +82,6 @@ float OcclusionConeTracing(vec3 pos, vec3 lightPos, vec3 normal, float aperture)
         currPos = pos + t * lightDir;
     }
     return (1.0 - min(1.0, occlusion)) * max(dot(lightDir, normal), 0.0);
-
 }
 
 vec4 IndirectSpecularLighting(vec3 pos, vec3 normal, vec3 traceDir){
@@ -94,7 +89,6 @@ vec4 IndirectSpecularLighting(vec3 pos, vec3 normal, vec3 traceDir){
 }
 
 vec4 IndirectDiffuseLighting(vec3 pos, vec3 normal, vec3 tangent, vec3 bitangent){
-   // vec4 color = vec4(0.0);
    normal = normalize(normal);
    tangent = normalize(tangent);
    bitangent = normalize(bitangent);

@@ -61,7 +61,7 @@ void main()
     vec3 diffuseColor = max(dot(lightDir, normal), 0.0) * color.xyz;
 	vec3 d_diffuseColor = max(dot(lightDir, d_normal), 0.0) * d_color.xyz;
 	float ratio = d_color.a / (d_color.a + color.a);
-	vec4 lighting = vec4(visibility * (d_diffuseColor * ratio + diffuseColor * ( 1.0 - ratio)), 1.0);
+	vec4 lighting = vec4(visibility * falloff * (d_diffuseColor * ratio + diffuseColor * ( 1.0 - ratio)), 1.0);
 
 	imageStore(Radiance3D, VoxelPos, lighting);
 

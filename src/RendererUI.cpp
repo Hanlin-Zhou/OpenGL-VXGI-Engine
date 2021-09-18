@@ -56,19 +56,7 @@ void RendererInitSetting(Renderer &renderer) {
 	if (ImGui::Button("Save Setting")) {
 		ImGui::SameLine(150);
 		ImGui::Text("Saved!");
-		std::ofstream outputfile("./json/RendererInitSetting.json");
-		using json = nlohmann::json;
-		json RIsetting;
-		RIsetting["MSAA"] = renderer.MSAA;
-		RIsetting["MSAASample"] = renderer.MSAASample;
-		RIsetting["SVOGI"] = renderer.SVOGI;
-		RIsetting["PCSS"] = renderer.PCSS;
-		RIsetting["SSAO"] = renderer.SSAO;
-		RIsetting["SkyBox"] = renderer.SkyBox;
-		RIsetting["GLDebugOutput"] = renderer.GLDebugOutput;
-		RIsetting["modelPath"] = renderer.modelPath;
-		RIsetting["HDRIPath"] = renderer.HDRIPath;
-		outputfile << std::setw(4) << RIsetting << std::endl;
+		renderer.SaveInit();
 	}
 	ImGui::End();
 
@@ -119,11 +107,11 @@ void ModelMenu(Renderer& renderer) {
 		for (int i = 0; i < renderer.modelList.size(); i++)
 		{
 			ImGui::Text(renderer.modelList[i].name.c_str());
+			ImGui::PushID(renderer.modelList[i].name.c_str());
 			if (renderer.modelList[i].isStatic) {
 				ImGui::Text("This Object is Static");
 			}
 			else {
-				ImGui::PushID(renderer.modelList[i].name.c_str());
 				ImGui::DragFloat("Scale", &renderer.modelList[i].scale, 0.01f, 0.1f, 20.0f);
 				ImGui::DragFloat3("Position", glm::value_ptr(renderer.modelList[i].offset), 0.005f);
 			}

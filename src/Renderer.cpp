@@ -937,9 +937,26 @@ void Renderer::setWidthHeight(unsigned int width, unsigned int height) {
 	renderHeight = height;
 }
 
+
 void Renderer::updateMats() {
 	proj_mat = cam.getProjMat();
 	view_mat = cam.getViewMat();
 }
 
+
+void Renderer::SaveInit() {
+	std::ofstream outputfile("./json/RendererInitSetting.json");
+	using json = nlohmann::json;
+	json RIsetting;
+	RIsetting["MSAA"] = MSAA;
+	RIsetting["MSAASample"] = MSAASample;
+	RIsetting["SVOGI"] = SVOGI;
+	RIsetting["PCSS"] = PCSS;
+	RIsetting["SSAO"] = SSAO;
+	RIsetting["SkyBox"] = SkyBox;
+	RIsetting["GLDebugOutput"] = GLDebugOutput;
+	RIsetting["modelPath"] = modelPath;
+	RIsetting["HDRIPath"] = HDRIPath;
+	outputfile << std::setw(4) << RIsetting << std::endl;
+}
 

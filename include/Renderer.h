@@ -13,6 +13,7 @@
 #include <Light.h>
 #include <Camera.h>
 #include <GLFW/glfw3.h>
+#include <iomanip>
 #include <json.hpp>
 
 class Renderer {
@@ -177,6 +178,7 @@ private:
 	void LoadShaders();
 	void Draw();
 	void ModelListDraw(Shader shader);
+	void SaveInit();
 
 public:
 	static Camera cam;
