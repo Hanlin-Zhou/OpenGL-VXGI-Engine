@@ -28,5 +28,5 @@ Build with:
 - tinyfiledialogs
 
 Current Progress 09/2021
-![Ray_KOtptVEybr](https://user-images.githubusercontent.com/52555899/133537703-2eca3d9c-b403-45aa-9a06-473d480c51ac.jpg)
-![Ray_FF5zCrvOaC](https://user-images.githubusercontent.com/52555899/133537689-96d084f1-d2ad-475b-a58e-071a2f7fe9aa.jpg)
+![Ray_U0A6aoNucf](https://user-images.githubusercontent.com/52555899/133915578-1b9bafbf-7254-4f6d-9bc6-560b11f0208c.jpg)
+![Ray_PDifU66qEn](https://user-images.githubusercontent.com/52555899/133915579-4b93bbde-a3b8-465c-a271-8996aa25eee2.jpg)
