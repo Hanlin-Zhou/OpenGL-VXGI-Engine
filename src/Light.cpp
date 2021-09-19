@@ -1,19 +1,9 @@
 #include <Light.h>
 
 
-Light::Light() {
-	position = glm::vec3(1, 10.6, 0.5);
-	normal = glm::vec3(0, -1, 0);
-	strength = 1000;
-}
-
-
-void Light::setPos(glm::vec3 pos) {
+Light::Light(glm::vec3 pos = glm::vec3(0.0, 5.0, 0.0), glm::vec3 norm = glm::vec3(0, -1, 0), float str = 1000) {
 	position = pos;
-}
-
-
-glm::vec3 Light::getPos() {
-	return position;
+	normal = norm;
+	strength = str;
 }
 

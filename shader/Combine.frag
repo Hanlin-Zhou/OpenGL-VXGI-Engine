@@ -11,7 +11,8 @@ uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
 uniform sampler2D Shadow;
 
-uniform vec3 lightPos;
+uniform vec3 PointLightPos;
+uniform float PointLightStrength;
 
 uniform sampler2D SSAO;
 uniform sampler2D skybox;
@@ -28,10 +29,10 @@ void main()
     float ks = texture(gAlbedoSpec, TexCoords).a;
     float shadow = texture(Shadow, TexCoords).r;
 
-    vec3 fragToLight = lightPos - FragPos;
+    vec3 fragToLight = PointLightPos - FragPos;
     float lightDist = length(fragToLight);
     vec3 lightDir = normalize(fragToLight);
-    float falloff = 1000.0/(4.0 * 3.1415 * lightDist * lightDist);
+    float falloff = PointLightStrength/(4.0 * 3.1415 * lightDist * lightDist);
     float diffuse = max(dot(lightDir, normal), 0.0) * (1.0 - ks);
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 halfwayDir = normalize(lightDir + viewDir); 

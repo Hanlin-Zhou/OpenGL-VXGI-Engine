@@ -97,7 +97,7 @@ void Application::renderUI() {
 		LoadMenu(currRenderer);
 		ModelMenu(currRenderer);
 		RendererMenu(currRenderer);
-		LightMenu(currRenderer.myLight);
+		LightMenu(currRenderer.myPointLight, currRenderer.myDirectionalLight);
 		CameraMenu(currRenderer.cam);
 		ControlMenu(*this);
 		DebugMenu(currRenderer);

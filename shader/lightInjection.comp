@@ -8,12 +8,21 @@ uniform sampler3D Normal3D;
 uniform sampler3D DynamicAlbedo3D;
 uniform sampler3D DynamicNormal3D;
 
-uniform samplerCube depthCubemap;
+uniform samplerCube PointDepthMap;
+uniform sampler2D DirectionalDepthMap;
+
+
+
 uniform float far_plane;
+
 uniform float MaxCoord;
 uniform int VoxelSize;
-uniform vec3 lightPos;
-uniform float lightStrength;
+
+uniform vec3 PointLightPos;
+uniform float PointLightStrength;
+
+uniform mat4 lightSpaceMatrix;
+uniform float DirectionalLightStrength;
 
 const float cellSize = 2.0 * MaxCoord / float(VoxelSize);
 
@@ -21,16 +30,30 @@ vec3 volPosToWorldPos(ivec3 volPos){
 	return vec3(volPos) * cellSize - vec3(MaxCoord);
 }
 
-float calculateShadow(vec3 lightPosition, vec3 FragPos){
+float calculatePointShadow(vec3 lightPosition, vec3 FragPos){
 	vec3 fragToLight = FragPos - lightPosition; 
     float currentDepth = length(fragToLight);
-	float closestDepth = texture(depthCubemap, fragToLight).r;
+	float closestDepth = texture(PointDepthMap, fragToLight).r;
 	closestDepth *= far_plane;
-	if (closestDepth < currentDepth - 1.0) {
+	if (closestDepth < currentDepth - 0.3) {
 		return 0.0;
 	}
 	return 1.0;
 }
+
+
+float calculateDirectionalShadow(vec3 FragPos){
+	vec4 fragPosLightSpace = lightSpaceMatrix * vec4(FragPos, 1.0);
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+	float closestDepth = texture(DirectionalDepthMap, projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    if (closestDepth < currentDepth - 0.02) {
+		return 0.0;
+	}
+	return 1.0;
+}
+
 
 vec3 DecodeNormal(vec3 normal)
 {
@@ -53,15 +76,19 @@ void main()
 	vec3 normal = DecodeNormal(texelFetch(Normal3D, VoxelPos, 0).xyz);
 	vec3 d_normal = DecodeNormal(texelFetch(DynamicNormal3D, VoxelPos, 0).xyz);
 	vec3 worldPos = volPosToWorldPos(VoxelPos);
-	float visibility = calculateShadow(lightPos, worldPos);
-	vec3 lightToFrag = lightPos - worldPos;
+
+	float point_visibility = calculatePointShadow(PointLightPos, worldPos);
+	vec3 lightToFrag = PointLightPos - worldPos;
 	vec3 lightDir = normalize(lightToFrag);
 	float lightDist = length(lightToFrag);
-    float falloff = lightStrength/(4.0 * 3.1415 * lightDist * lightDist);
+    float point_falloff = PointLightStrength/(4.0 * 3.1415 * lightDist * lightDist);
+
+	float dir_visibility = calculateDirectionalShadow(worldPos);
+
     vec3 diffuseColor = max(dot(lightDir, normal), 0.0) * color.xyz;
 	vec3 d_diffuseColor = max(dot(lightDir, d_normal), 0.0) * d_color.xyz;
 	float ratio = d_color.a / (d_color.a + color.a);
-	vec4 lighting = vec4(visibility * falloff * (d_diffuseColor * ratio + diffuseColor * ( 1.0 - ratio)), 1.0);
+	vec4 lighting = vec4((point_visibility * point_falloff + dir_visibility * DirectionalLightStrength)* (d_diffuseColor * ratio + diffuseColor * ( 1.0 - ratio)), 1.0);
 
 	imageStore(Radiance3D, VoxelPos, lighting);
 

@@ -3,7 +3,9 @@
 
 Renderer::Renderer(unsigned int width, unsigned int height) {
 	state = 0;
-	myLight = Light();
+
+	myPointLight = PointLight();
+	myDirectionalLight = DirectionalLight();
 
 	using json = nlohmann::json;
 	std::ifstream inputfile("./json/RendererInitSetting.json");
@@ -190,9 +192,13 @@ void Renderer::initializeBuffers() {
 			shadowWidth = 2048;
 			shadowHeight = 2048;
 		}
-		glGenFramebuffers(1, &DepthCubeFBO);
-		DepthCubeMap = bindCubeDepthMap(DepthCubeFBO, shadowWidth, shadowHeight);
-		SProj = glm::perspective(glm::radians(90.0), (double)shadowWidth / (double)shadowHeight, 0.1, (double)cam.far_plane);
+		glGenFramebuffers(1, &PointDepthCubeFBO);
+		PointDepthCubeMap = bindCubeDepthMap(PointDepthCubeFBO, shadowWidth, shadowHeight);
+		PointShadowProj = glm::perspective(glm::radians(90.0), (double)shadowWidth / (double)shadowHeight, (double)cam.near_plane, (double)cam.far_plane);
+		glGenFramebuffers(1, &DirectionalDepthFBO);
+		DirectionalDepthMap = bindDepthMap(DirectionalDepthFBO, 2048, 2048);
+		float coord = 1.5 * MaxCoord;
+		DirectionalShadowProj = glm::ortho(-coord, coord, -coord, coord, 0.01f, 2 * coord);
 	}
 
 	// HDRI
@@ -443,32 +449,57 @@ void Renderer::SkyBoxDraw() {
 
 
 void Renderer::ShadowMapDraw() {
-	glm::vec3 lightpos = myLight.getPos();
+	glm::vec3 lightpos = myPointLight.position;
 	std::vector<glm::mat4> shadowTransforms;
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
-	shadowTransforms.push_back(SProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(PointShadowProj * glm::lookAt(lightpos, lightpos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 
 	glViewport(0, 0, shadowWidth, shadowHeight);
-	glBindFramebuffer(GL_FRAMEBUFFER, DepthCubeFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, PointDepthCubeFBO);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	DepthShader.use();
-	DepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
+	PointDepthShader.use();
+	PointDepthShader.setVec3("lightPos", glm::value_ptr(lightpos));
 	for (unsigned int i = 0; i < 6; ++i)
-		DepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-	DepthShader.setFloat("far_plane", cam.far_plane);
+		PointDepthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+	PointDepthShader.setFloat("far_plane", cam.far_plane);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	if (PeterPan) {
 		glCullFace(GL_FRONT);
-		ModelListDraw(DepthShader);
+		ModelListDraw(PointDepthShader);
 		glCullFace(GL_BACK);
 	}
 	else {
-		ModelListDraw(DepthShader);
+		ModelListDraw(PointDepthShader);
+	}
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+
+	// Directional
+	glViewport(0, 0, 2048, 2048);
+	glBindFramebuffer(GL_FRAMEBUFFER, DirectionalDepthFBO);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glm::vec3 DPos = 1.5f * MaxCoord * -glm::normalize(myDirectionalLight.normal);
+	glm::vec3 up = glm::vec3(1.0f, 0.0f, 0.0f);
+
+	myDirectionalLight.position = DPos;
+	glm::mat4 DView = glm::lookAt(DPos, glm::vec3(0.0f, 0.0f, 0.0f), up);
+	DirectionalLightSpaceMatrix = DirectionalShadowProj * DView;
+	DirectionalDepthShader.use();
+	DirectionalDepthShader.setMat4("lightSpaceMatrix", glm::value_ptr(DirectionalLightSpaceMatrix), false);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	if (PeterPan) {
+		glCullFace(GL_FRONT);
+		ModelListDraw(DirectionalDepthShader);
+		glCullFace(GL_BACK);
+	}
+	else {
+		ModelListDraw(DirectionalDepthShader);
 	}
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -480,28 +511,34 @@ void Renderer::LightInjection() {
 	float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	glClearTexImage(Radiance3D, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
 	LightInjectionShader.use();
-	glm::vec3 lightpos = myLight.getPos();
-	LightInjectionShader.setVec3("lightPos", glm::value_ptr(lightpos));
-	LightInjectionShader.setFloat("lightStrength", myLight.strength);
+	LightInjectionShader.setVec3("PointLightPos", glm::value_ptr(myPointLight.position));
+	LightInjectionShader.setFloat("PointLightStrength", myPointLight.strength);
+	LightInjectionShader.setMat4("lightSpaceMatrix", glm::value_ptr(DirectionalLightSpaceMatrix), false);
+	LightInjectionShader.setFloat("DirectionalLightStrength", myDirectionalLight.strength);
 	LightInjectionShader.setInt("VoxelSize", VoxelSize);
 	LightInjectionShader.setFloat("far_plane", cam.far_plane);
 	LightInjectionShader.setFloat("MaxCoord", MaxCoord);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
+	
 	glBindImageTexture(0, Radiance3D, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
-	LightInjectionShader.setInt("depthCubemap", 1);
-	glActiveTexture(GL_TEXTURE2);
+	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_3D, Albedo3D);
-	LightInjectionShader.setInt("Albedo3D", 2);
-	glActiveTexture(GL_TEXTURE3);
+	LightInjectionShader.setInt("Albedo3D", 1);
+	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_3D, Normal3D);
-	LightInjectionShader.setInt("Normal3D", 3);
-	glActiveTexture(GL_TEXTURE4);
+	LightInjectionShader.setInt("Normal3D", 2);
+	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_3D, DynamicAlbedo3D);
-	LightInjectionShader.setInt("DynamicAlbedo3D", 4);
-	glActiveTexture(GL_TEXTURE5);
+	LightInjectionShader.setInt("DynamicAlbedo3D", 3);
+	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_3D, DynamicNormal3D);
-	LightInjectionShader.setInt("DynamicNormal3D", 5);
+	LightInjectionShader.setInt("DynamicNormal3D", 4);
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, PointDepthCubeMap);
+	LightInjectionShader.setInt("PointDepthMap", 5);
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, DirectionalDepthMap);
+	LightInjectionShader.setInt("DirectionalDepthMap", 6);
+
 	glDispatchCompute(workgroupsize, workgroupsize, workgroupsize);
 	glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -528,10 +565,13 @@ void Renderer::ConeTrace(unsigned int buffer) {
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 	ConeTracingShader.use();
 	glm::vec3 temp_campos = cam.getPosition();
-	glm::vec3 temp_lightpos = myLight.getPos();
-	ConeTracingShader.setVec3("lightPos", glm::value_ptr(temp_lightpos));
+	glm::vec3 temp_lightpos = myPointLight.position;
+	glm::vec3 temp_dir = -glm::normalize(myDirectionalLight.normal);
+	ConeTracingShader.setVec3("PointLightPos", glm::value_ptr(temp_lightpos));
+	ConeTracingShader.setFloat("PointLightStrength", myPointLight.strength);
+	ConeTracingShader.setVec3("DirectionalLightDirection", glm::value_ptr(temp_dir));
+	ConeTracingShader.setFloat("DirectionalLightStrength", myDirectionalLight.strength);
 	ConeTracingShader.setVec3("viewPos", glm::value_ptr(temp_campos));
-	ConeTracingShader.setFloat("lightStrength", myLight.strength);
 	if (MSAA) {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gPosition);
@@ -664,9 +704,9 @@ void Renderer::gBufferLightingPassDraw() {
 		gBufferLightPass.setInt("gPosition", 0);
 	}
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, DepthCubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, PointDepthCubeMap);
 	gBufferLightPass.setInt("depthCubemap", 3);
-	glm::vec3 temp_lightpos = myLight.getPos();
+	glm::vec3 temp_lightpos = myPointLight.position;
 	gBufferLightPass.setVec3("lightPos", glm::value_ptr(temp_lightpos));
 	gBufferLightPass.setFloat("far_plane", cam.far_plane);
 	renderQuad(quadVAO);
@@ -731,9 +771,10 @@ void Renderer::gBufferCombineDraw(unsigned int buffer) {
 	glBindTexture(GL_TEXTURE_2D, SkyBoxOut);
 	gBufferCombine.setInt("skybox", 5);
 	glm::vec3 temp_campos = cam.getPosition();
-	glm::vec3 temp_lightpos = myLight.getPos();
-	gBufferCombine.setVec3("lightPos", glm::value_ptr(temp_lightpos));
+	glm::vec3 temp_lightpos = myPointLight.position;
+	gBufferCombine.setVec3("PointLightPos", glm::value_ptr(temp_lightpos));
 	gBufferCombine.setVec3("viewPos", glm::value_ptr(temp_campos));
+	gBufferCombine.setFloat("PointLightStrength", myPointLight.strength);
 	gBufferCombine.setBool("HDR", HDR);
 	gBufferCombine.setInt("MSAA_Sample", MSAASample);
 	glEnable(GL_FRAMEBUFFER_SRGB);
@@ -894,7 +935,8 @@ void Renderer::LoadShaders() {
 
 	// PCSS
 	if (PCSS || SVOGI) {
-		DepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
+		PointDepthShader = Shader("./shader/cubeDepth.vert", "./shader/cubeDepth.frag", "./shader/cubeDepth.geom");
+		DirectionalDepthShader = Shader("./shader/directionalDepth.vert", "./shader/empty.frag");
 		if (MSAA) {
 			gBufferLightPass = Shader("./shader/deferred_shading.vert", "./shader/MSCubePCSS.frag");
 		}

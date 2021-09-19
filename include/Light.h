@@ -7,9 +7,5 @@ public:
 	glm::vec3 normal;
 	float strength;
 
-	Light();
-	void setPos(glm::vec3 pos);
-	glm::vec3 getPos();
-	void setState(bool onoff);
-	// void setIntensity(float i);
+	Light(glm::vec3 pos, glm::vec3 norm, float str);
 };

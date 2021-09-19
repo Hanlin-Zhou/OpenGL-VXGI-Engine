@@ -15,6 +15,8 @@
 #include <GLFW/glfw3.h>
 #include <iomanip>
 #include <json.hpp>
+#include <DirectionalLight.h>
+#include <PointLight.h>
 
 class Renderer {
 private:
@@ -96,10 +98,15 @@ private:
 	Shader BlurShader;
 
 	// Cube Shadow FBO and Shadow Projection Matrix
-	unsigned int DepthCubeFBO;
-	unsigned int DepthCubeMap;
-	glm::mat4 SProj;
-	Shader DepthShader;
+	unsigned int PointDepthCubeFBO;
+	unsigned int DirectionalDepthFBO;
+	unsigned int PointDepthCubeMap;
+	unsigned int DirectionalDepthMap;
+	glm::mat4 PointShadowProj;
+	glm::mat4 DirectionalShadowProj;
+	glm::mat4 DirectionalLightSpaceMatrix;
+	Shader PointDepthShader;
+	Shader DirectionalDepthShader;
 
 	// SkyBox / HDRI
 	unsigned int HdriFBO;
@@ -182,7 +189,8 @@ private:
 
 public:
 	static Camera cam;
-	Light myLight;
+	PointLight myPointLight;
+	DirectionalLight myDirectionalLight;
 
 	Renderer() {};
 	Renderer(unsigned int width, unsigned int height);
