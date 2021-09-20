@@ -104,10 +104,11 @@ void Renderer::initializeBuffers() {
 									GL_COLOR_ATTACHMENT4};
 	glDrawBuffers(5, attachments);
 
-	gPosition = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, MSAASample, GL_LINEAR);
-	gNormal = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, MSAASample, GL_LINEAR);
-	gAlbedoSpec = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, MSAASample, GL_LINEAR);
-	gTangent = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA32F, MSAASample, GL_LINEAR);
+	gPosition = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA16F, MSAASample, GL_LINEAR);
+	gNormal = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA16F, MSAASample, GL_LINEAR);
+	gAlbedoSpec = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA16F, MSAASample, GL_LINEAR);
+	gTangent = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA16F, MSAASample, GL_LINEAR);
+	gFlatNormal = bindColorBuffer(gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT4, GL_RGBA16F, MSAASample, GL_LINEAR);
 	attachRBOToBuffer(gBuffer, renderWidth, renderHeight, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, MSAASample);
 
 	// Shadow FBO
@@ -120,20 +121,16 @@ void Renderer::initializeBuffers() {
 	glGenFramebuffers(1, &ds_gBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, ds_gBuffer);
 	unsigned int ds_attachments[6] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, 
-										GL_COLOR_ATTACHMENT4};
+										GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
 	glDrawBuffers(4, ds_attachments);
 	if (MSAA) {
-		ds_gPosition = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
-		ds_gNormal = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
-		ds_gAlbedoSpec = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
-		ds_gTangent = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT3, GL_RGBA32F, 1, GL_LINEAR);
-		ds_gMSAA = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT4, GL_R8, 1, GL_LINEAR);
+		ds_gPosition = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA16F, 1, GL_LINEAR);
+		ds_gNormal = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA16F, 1, GL_LINEAR);
+		ds_gMSAA = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT5, GL_R8, 1, GL_LINEAR);
 	}
 	else {
 		ds_gPosition = gPosition;
 		ds_gNormal = gNormal;
-		ds_gAlbedoSpec = gAlbedoSpec;
-		ds_gTangent = gTangent;
 	}
 	
 
@@ -179,7 +176,7 @@ void Renderer::initializeBuffers() {
 		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 		ssaoOut = bindColorBuffer(ssaoFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RED, 1, GL_LINEAR);
-		ds_gViewPos = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT5, GL_RGBA32F, 1, GL_LINEAR);
+		ds_gViewPos = bindColorBuffer(ds_gBuffer, renderWidth, renderHeight, GL_COLOR_ATTACHMENT5, GL_RGBA16F, 1, GL_LINEAR);
 	}
 
 	// Post Processing Buffer
@@ -215,9 +212,9 @@ void Renderer::initializeBuffers() {
 
 	if (SVOGI) {
 		glGenFramebuffers(1, &VoxelVisFBO);
-		VoxelVisFrontFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA32F, 1, GL_LINEAR);
-		VoxelVisBackFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
-		VoxelVisOut = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA32F, 1, GL_LINEAR);
+		VoxelVisFrontFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT0, GL_RGBA8, 1, GL_LINEAR);
+		VoxelVisBackFace = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA8, 1, GL_LINEAR);
+		VoxelVisOut = bindColorBuffer(VoxelVisFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT2, GL_RGBA8, 1, GL_LINEAR);
 
 		glGenFramebuffers(1, &SVOGIFBO);
 		glBindFramebuffer(GL_FRAMEBUFFER, SVOGIFBO);
@@ -262,8 +259,8 @@ void Renderer::initializeBuffers() {
 
 	// Debug UI
 	VoxelDebugViewsID = { Albedo3D , Normal3D , DynamicAlbedo3D , DynamicNormal3D , Radiance3D };
-	DebugViewsID = { gPosition, gNormal, gAlbedoSpec, gTangent, ShadowRaw, ShadowBlur, ShadowOut, ds_gPosition,
-				ds_gNormal, ds_gAlbedoSpec, ds_gTangent, ds_gMSAA, ds_gViewPos, ssaoOut, PostProcessingOut, PointDepthCubeMap,
+	DebugViewsID = { gPosition, gNormal, gAlbedoSpec, gTangent, gFlatNormal, ShadowRaw, ShadowBlur, ShadowOut, ds_gPosition,
+				ds_gNormal, ds_gMSAA, ds_gViewPos, ssaoOut, PostProcessingOut, PointDepthCubeMap,
 				DirectionalDepthMap, SkyBoxOut, VoxelVisOut };
 
 }
@@ -379,8 +376,11 @@ void Renderer::gBufferDraw() {
 		glDrawBuffer(GL_COLOR_ATTACHMENT3);
 		glReadBuffer(GL_COLOR_ATTACHMENT3);
 		glBlitFramebuffer(0, 0, renderWidth, renderHeight, 0, 0, renderWidth, renderHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
 		glDrawBuffer(GL_COLOR_ATTACHMENT4);
+		glReadBuffer(GL_COLOR_ATTACHMENT4);
+		glBlitFramebuffer(0, 0, renderWidth, renderHeight, 0, 0, renderWidth, renderHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+		glDrawBuffer(GL_COLOR_ATTACHMENT5);
 		MSAADetectShader.use();
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gNormal);
@@ -596,9 +596,9 @@ void Renderer::ConeTrace(unsigned int buffer) {
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gAlbedoSpec);
 		ConeTracingShader.setInt("gAlbedoSpec", 2);
-		glActiveTexture(GL_TEXTURE4);
+		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, gTangent);
-		ConeTracingShader.setInt("gTangent", 4);
+		ConeTracingShader.setInt("gTangent", 3);
 		glActiveTexture(GL_TEXTURE7);
 		glBindTexture(GL_TEXTURE_2D, ds_gMSAA);
 		ConeTracingShader.setInt("ds_gNormal", 7);
@@ -613,9 +613,12 @@ void Renderer::ConeTrace(unsigned int buffer) {
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
 		ConeTracingShader.setInt("gAlbedoSpec", 2);
-		glActiveTexture(GL_TEXTURE4);
+		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, gTangent);
-		ConeTracingShader.setInt("gTangent", 4);
+		ConeTracingShader.setInt("gTangent", 3);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, gFlatNormal);
+		ConeTracingShader.setInt("gFlatNormal", 4);
 		
 	}
 	
@@ -920,7 +923,7 @@ void Renderer::loadHDRI(bool loaded) {
 			renderSkybox(SkyBoxVAO);
 		}
 		glViewport(0, 0, renderWidth, renderHeight);
-		SkyBoxOut = bindColorBuffer(PostProcessingFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA32F, 1, GL_LINEAR);
+		SkyBoxOut = bindColorBuffer(PostProcessingFBO, renderWidth, renderHeight, GL_COLOR_ATTACHMENT1, GL_RGBA16F, 1, GL_LINEAR);
 		SkyBox = true;
 	}
 	glEnable(GL_DEPTH_TEST);

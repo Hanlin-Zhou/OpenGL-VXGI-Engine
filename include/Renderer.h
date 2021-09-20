@@ -64,6 +64,7 @@ private:
 	unsigned int gNormal;
 	unsigned int gAlbedoSpec;
 	unsigned int gTangent;
+	unsigned int gFlatNormal;
 	Shader gBufferGeoPass;
 	Shader gBufferLightPass;
 	Shader gBufferCombine;
@@ -78,8 +79,6 @@ private:
 	unsigned int ds_gBuffer;
 	unsigned int ds_gPosition;
 	unsigned int ds_gNormal;
-	unsigned int ds_gAlbedoSpec;
-	unsigned int ds_gTangent;
 	unsigned int ds_gMSAA;
 	unsigned int ds_gViewPos;
 	Shader DownSampleShader;
@@ -164,8 +163,8 @@ private:
 	unsigned int DebugOut;
 	float DebugWindowSize;
 	Shader DebugShader;
-	std::vector<std::string> DebugViewsName = {"gPosition", "gNormal", "gAlbedoSpec", "gTangent", "ShadowRaw", "ShadowBlur", "ShadowOut", 
-				"ds_gPosition", "ds_gNormal", "ds_gAlbedoSpec", "ds_gTangent", "ds_gMSAA", "ds_gViewPos", "ssaoOut", 
+	std::vector<std::string> DebugViewsName = {"gPosition", "gNormal", "gAlbedoSpec", "gTangent", "gFlatNormal", "ShadowRaw", "ShadowBlur", "ShadowOut", 
+				"ds_gPosition", "ds_gNormal", "ds_gMSAA", "ds_gViewPos", "ssaoOut", 
 				"PostProcessingOut", "PointDepthCubeMap", "DirectionalDepthMap", "SkyBoxOut", "VoxelVisOut"};
 	std::vector<unsigned int> DebugViewsID;
 	std::vector<std::string> VoxelDebugViewsName = { "Albedo3D", "Normal3D", "DynamicAlbedo3D", "DynamicNormal3D", "Radiance3D"};

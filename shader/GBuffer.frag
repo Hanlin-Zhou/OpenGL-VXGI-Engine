@@ -3,6 +3,7 @@ layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec4 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
 layout (location = 3) out vec3 gTangent;
+layout (location = 4) out vec3 gFlatNormal;
 
 in VS_OUT {
     vec3 FragPos;
@@ -29,6 +30,7 @@ void main()
     }
     gPosition = fs_in.FragPos;
     vec3 norm = texture(texture_normal1, fs_in.TexCoords).rgb;
+    gFlatNormal = fs_in.Normal;
     if (length(norm) == 0.0){
         gNormal = vec4(fs_in.Normal, float(gl_SampleMaskIn[0])/ div);
     }else{
