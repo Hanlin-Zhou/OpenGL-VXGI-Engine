@@ -135,14 +135,20 @@ private:
 	Shader MipmapShader;
 	Shader ConeTracingShader;
 
-	float GI_OcclusionOffsetFactor;
-	float GI_DiffuseOffsetFactor;
 	float GI_SpecularOffsetFactor;
 	float GI_SpecularAperture;
+	float GI_SpecularMaxT;
+
+	float GI_DiffuseOffsetFactor;
 	float GI_DiffuseAperture;
-	float GI_OcculsionAperture;
-	float GI_stepSize;
 	float GI_DiffuseConeAngleMix;
+	float GI_DiffuseMaxT;
+
+	float GI_OcclusionOffsetFactor;
+	float GI_OcculsionAperture;
+	float GI_DirectionalMaxT;
+
+	float GI_stepSize;
 
 	// SVOGI Visualizer
 	unsigned int VoxelVisFBO;
@@ -158,6 +164,14 @@ private:
 	unsigned int DebugOut;
 	float DebugWindowSize;
 	Shader DebugShader;
+	std::vector<std::string> DebugViewsName = {"gPosition", "gNormal", "gAlbedoSpec", "gTangent", "ShadowRaw", "ShadowBlur", "ShadowOut", 
+				"ds_gPosition", "ds_gNormal", "ds_gAlbedoSpec", "ds_gTangent", "ds_gMSAA", "ds_gViewPos", "ssaoOut", 
+				"PostProcessingOut", "PointDepthCubeMap", "DirectionalDepthMap", "SkyBoxOut", "VoxelVisOut"};
+	std::vector<unsigned int> DebugViewsID;
+	std::vector<std::string> VoxelDebugViewsName = { "Albedo3D", "Normal3D", "DynamicAlbedo3D", "DynamicNormal3D", "Radiance3D"};
+	std::vector<unsigned int> VoxelDebugViewsID;
+	unsigned int CurrentDebugView;
+	unsigned int VoxelCurrentDebugView;
 
 	// misc
 	unsigned int quadVAO;
@@ -180,7 +194,7 @@ private:
 	void ConeTrace(unsigned int buffer);
 	void gBufferLightingPassDraw();
 	void gBufferCombineDraw(unsigned int buffer);
-	void VoxelVisualize();
+	void VoxelVisualize(unsigned int voxel);
 	void DebugWindowDraw(unsigned int texture);
 	void LoadShaders();
 	void Draw();

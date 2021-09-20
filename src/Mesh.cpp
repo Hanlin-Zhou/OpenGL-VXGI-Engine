@@ -1,10 +1,11 @@
 #include <Mesh.h>
 
 
-Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures) {
+Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures, glm::vec3 color) {
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;
+	this->color = color;
 
 	setupMesh();
 }
@@ -47,17 +48,21 @@ void Mesh::Draw(Shader& shader, bool showTex, bool showNorm) {
 	unsigned int opacityNr = 1;
 
 	float default_1[4] = { 1.0,1.0,1.0,1.0 };
+	float default_color[4] = {color[0], color[1], color[2], 1.0};
 	float default_0[4] = { 0.0,0.0,0.0,0.0 };
-	unsigned int default_tex_1, default_tex_0;
+	unsigned int default_tex_1, default_tex_0, default_tex_color;
 	glGenTextures(1, &default_tex_1);
 	glGenTextures(1, &default_tex_0);
+	glGenTextures(1, &default_tex_color);
 	glBindTexture(GL_TEXTURE_2D, default_tex_1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, default_1);
 	glBindTexture(GL_TEXTURE_2D, default_tex_0);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, default_0);
+	glBindTexture(GL_TEXTURE_2D, default_tex_color);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, 1, 1, 0, GL_RGBA, GL_FLOAT, default_color);
 
 	glActiveTexture(GL_TEXTURE10); // diff
-	glBindTexture(GL_TEXTURE_2D, default_tex_1);
+	glBindTexture(GL_TEXTURE_2D, default_tex_color);
 	glActiveTexture(GL_TEXTURE11); // spec
 	glBindTexture(GL_TEXTURE_2D, default_tex_0);
 	glActiveTexture(GL_TEXTURE12); // norm

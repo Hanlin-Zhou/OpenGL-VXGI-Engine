@@ -43,15 +43,22 @@ Renderer::Renderer(unsigned int width, unsigned int height) {
 
 	DebugWindowSize = -1.0;
 
-	GI_OcclusionOffsetFactor = 3.0;
-	GI_DiffuseOffsetFactor = 1.5;
 	GI_SpecularOffsetFactor = 3.0;
 	GI_SpecularAperture = 0.10;
-	GI_DiffuseAperture = 1.04;
-	GI_OcculsionAperture = 0.10;
-	GI_stepSize = 0.3;
-	GI_DiffuseConeAngleMix = 0.666;
+	GI_SpecularMaxT = 1.0;
 
+	GI_DiffuseOffsetFactor = 1.5;
+	GI_DiffuseAperture = 1.04;
+	GI_DiffuseConeAngleMix = 0.666;
+	GI_DiffuseMaxT = 1.0;
+
+	GI_OcclusionOffsetFactor = 3.0;
+	GI_OcculsionAperture = 0.10;
+
+	GI_DirectionalMaxT = 1.0;
+
+	GI_stepSize = 0.3;
+	
 	MaxCoord = 0.0;
 }
 
@@ -252,6 +259,13 @@ void Renderer::initializeBuffers() {
 
 		voxelizeStatic();
 	}
+
+	// Debug UI
+	VoxelDebugViewsID = { Albedo3D , Normal3D , DynamicAlbedo3D , DynamicNormal3D , Radiance3D };
+	DebugViewsID = { gPosition, gNormal, gAlbedoSpec, gTangent, ShadowRaw, ShadowBlur, ShadowOut, ds_gPosition,
+				ds_gNormal, ds_gAlbedoSpec, ds_gTangent, ds_gMSAA, ds_gViewPos, ssaoOut, PostProcessingOut, PointDepthCubeMap,
+				DirectionalDepthMap, SkyBoxOut, VoxelVisOut };
+
 }
 
 
@@ -284,11 +298,11 @@ void Renderer::Draw() {
 	}
 
 	if (SVOGI && ShowDebug) {
-		VoxelVisualize();
+		VoxelVisualize(VoxelCurrentDebugView);
 	}
 
 	if (ShowDebug) {
-		DebugWindowDraw(VoxelVisOut);
+		DebugWindowDraw(CurrentDebugView);
 	}
 }
 
@@ -299,9 +313,9 @@ void Renderer::loadModel() {
 	modelList.emplace_back(modelPath.c_str());
 	MaxCoord = modelList[0].max_pos + 1.0;
 	if (SVOGI) {
-		modelList[0].isStatic = true;
-		modelList[0].scale = 50.0 / modelList[0].max_pos;
-		MaxCoord = 50.0;
+		glm::vec3 midpoint = (modelList[0].max_vec + modelList[0].min_vec) * 0.5f;
+		MaxCoord = glm::compMax(glm::abs(midpoint - modelList[0].max_vec)) + 1.0;
+		modelList[0].offset = -midpoint;
 		glm::mat4 SVOGIproj = glm::ortho(-MaxCoord, MaxCoord, -MaxCoord, MaxCoord, 0.1f, 2.0f * MaxCoord + 0.1f);
 		VoxelProjectMat = SVOGIproj * glm::lookAt(glm::vec3(0.0f, 0.0f, MaxCoord + 0.1f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	}
@@ -616,13 +630,21 @@ void Renderer::ConeTrace(unsigned int buffer) {
 	ConeTracingShader.setFloat("MaxCoord", MaxCoord);
 	ConeTracingShader.setInt("VoxelSize", VoxelSize);
 	ConeTracingShader.setMat4("ProjectMat", VoxelProjectMat);
-	ConeTracingShader.setFloat("OcclusionOffsetFactor", GI_OcclusionOffsetFactor);
-	ConeTracingShader.setFloat("DiffuseOffsetFactor", GI_DiffuseOffsetFactor);
+	
+	
 	ConeTracingShader.setFloat("SpecularOffsetFactor", GI_SpecularOffsetFactor);
 	ConeTracingShader.setFloat("SpecularAperture", GI_SpecularAperture);
+	ConeTracingShader.setFloat("SpecularMaxT", GI_SpecularMaxT);
+
+	ConeTracingShader.setFloat("DiffuseOffsetFactor", GI_DiffuseOffsetFactor);
 	ConeTracingShader.setFloat("DiffuseAperture", GI_DiffuseAperture);
-	ConeTracingShader.setFloat("OcculsionAperture", GI_OcculsionAperture);
 	ConeTracingShader.setFloat("DiffuseConeAngleMix", GI_DiffuseConeAngleMix);
+	ConeTracingShader.setFloat("DiffuseMaxT", GI_DiffuseMaxT);
+
+	ConeTracingShader.setFloat("OcclusionOffsetFactor", GI_OcclusionOffsetFactor);
+	ConeTracingShader.setFloat("OcculsionAperture", GI_OcculsionAperture);
+	ConeTracingShader.setFloat("DirectionalMaxT", GI_DirectionalMaxT);
+	
 	ConeTracingShader.setFloat("stepSize", GI_stepSize);
 	float VoxelCellSize = MaxCoord * 2.0 / VoxelSize;
 	ConeTracingShader.setFloat("VoxelCellSize", VoxelCellSize);
@@ -783,7 +805,7 @@ void Renderer::gBufferCombineDraw(unsigned int buffer) {
 }
 
 
-void Renderer::VoxelVisualize() {
+void Renderer::VoxelVisualize(unsigned int voxel) {
 	glViewport(0, 0, renderWidth, renderHeight);
 	glBindFramebuffer(GL_FRAMEBUFFER, VoxelVisFBO);
 	VoxelVisFaceShader.use();
@@ -814,7 +836,7 @@ void Renderer::VoxelVisualize() {
 	glBindTexture(GL_TEXTURE_2D, VoxelVisFrontFace);
 	VoxelVisTraceShader.setInt("textureFront", 1);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_3D, Radiance3D);
+	glBindTexture(GL_TEXTURE_3D, voxel);
 	VoxelVisTraceShader.setInt("tex3D", 2);
 	glm::vec3 temp_campos = cam.getPosition();
 	VoxelVisTraceShader.setVec3("cameraPosition", glm::value_ptr(temp_campos));

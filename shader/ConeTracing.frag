@@ -23,14 +23,21 @@ uniform float MaxCoord;
 uniform int VoxelSize;
 uniform mat4 ProjectMat;
 
-uniform float OcclusionOffsetFactor;
-uniform float DiffuseOffsetFactor;
 uniform float SpecularOffsetFactor;
 uniform float SpecularAperture;
+uniform float SpecularMaxT;
+
+uniform float DiffuseOffsetFactor;
 uniform float DiffuseAperture;
-uniform float OcculsionAperture;
-uniform float stepSize;
 uniform float DiffuseConeAngleMix;
+uniform float DiffuseMaxT;
+
+uniform float OcclusionOffsetFactor;
+uniform float OcculsionAperture;
+uniform float DirectionalMaxT;
+
+uniform float stepSize;
+
 
 vec3 convWorldPosToVoxelPos(vec3 pos){
      vec4 temp = ProjectMat * vec4(pos, 1.0);
@@ -45,11 +52,11 @@ vec4 sampleVoxel(vec3 pos, float diameter){
 }
 
 
-vec4 ConeTracing(vec3 origin, vec3 normal, vec3 direction, float aperture, float offset){
+vec4 ConeTracing(vec3 origin, vec3 normal, vec3 direction, float aperture, float offset, float mt){
     float t = offset * VoxelCellSize;
     vec3 acc = vec3(0.0);
     float occlusion = 0.0;
-    float max_t = 2.828426 * MaxCoord;
+    float max_t = mt;
     float diameter = 2.0 * t * tan(aperture/ 2.0);
     origin += 1.0 * normal * VoxelCellSize;
     vec3 currPos = origin + t * direction;
@@ -87,18 +94,15 @@ float OcclusionConeTracing(vec3 pos, vec3 direction, vec3 normal, float aperture
 }
 
 vec4 IndirectSpecularLighting(vec3 pos, vec3 normal, vec3 traceDir){
-   return ConeTracing(pos, normal, traceDir, SpecularAperture, SpecularOffsetFactor);
+   return ConeTracing(pos, normal, traceDir, SpecularAperture, SpecularOffsetFactor, MaxCoord * SpecularMaxT);
 }
 
 vec4 IndirectDiffuseLighting(vec3 pos, vec3 normal, vec3 tangent, vec3 bitangent){
-   normal = normalize(normal);
-   tangent = normalize(tangent);
-   bitangent = normalize(bitangent);
-   vec4 color = 0.5 * ConeTracing(pos, normal, mix(normal, tangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor);
-   color += 0.5 * ConeTracing(pos, normal, mix(normal, -tangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor);
-   color += 0.5 * ConeTracing(pos, normal, mix(normal, bitangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor);
-   color += 0.5 * ConeTracing(pos, normal, mix(normal, -bitangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor);
-   color += ConeTracing(pos, normal, normal, DiffuseAperture, DiffuseOffsetFactor);
+   vec4 color = 0.5 * ConeTracing(pos, normal, mix(normal, tangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor, MaxCoord * DiffuseMaxT);
+   color += 0.5 * ConeTracing(pos, normal, mix(normal, -tangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor, MaxCoord * DiffuseMaxT);
+   color += 0.5 * ConeTracing(pos, normal, mix(normal, bitangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor, MaxCoord * DiffuseMaxT);
+   color += 0.5 * ConeTracing(pos, normal, mix(normal, -bitangent, DiffuseConeAngleMix), DiffuseAperture, DiffuseOffsetFactor, MaxCoord * DiffuseMaxT);
+   color += ConeTracing(pos, normal, normal, DiffuseAperture, DiffuseOffsetFactor, MaxCoord * DiffuseMaxT);
    return vec4(color.xyz, 1.0);
 }
 
@@ -134,10 +138,10 @@ void main()
     vec4 IndirectSpecular = IndirectSpecularLighting(FragPos.xyz, normal, specularTrace);
     vec4 IndirectDiffuse = IndirectDiffuseLighting(FragPos.xyz, normal, tangent, bitangent);
     float point_occlu = OcclusionConeTracing(FragPos.xyz, PointLightPos - FragPos.xyz, normal, OcculsionAperture, length(PointLightPos - FragPos.xyz));
-    float dir_occlu = OcclusionConeTracing(FragPos.xyz, DirectionalLightDirection, normal, OcculsionAperture, MaxCoord);
+    float dir_occlu = OcclusionConeTracing(FragPos.xyz, DirectionalLightDirection, normal, OcculsionAperture, MaxCoord * DirectionalMaxT);
     vec4 Direct = DirectLighting(color.xyz, color.a, FragPos.xyz, viewDir, normal, PointLightPos, point_occlu, dir_occlu);
     vec4 Indirect = color.a * IndirectSpecular + (1.0 - color.a) * IndirectDiffuse;
     FragColor = (Direct + vec4(color.xyz, 1.0) * Indirect)  * Valid + (1.0 - Valid) * vec4(skyboxColor, 1.0);
     FragColor.xyz = FragColor.xyz / (FragColor.xyz + vec3(1.0));
-    // FragColor = vec4(dir_occlu,dir_occlu,dir_occlu,1.0)  * Valid;
+    // FragColor = vec4(dir_occlu)  * Valid;
 }  

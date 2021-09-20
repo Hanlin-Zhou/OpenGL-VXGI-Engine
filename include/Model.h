@@ -16,6 +16,10 @@ public:
 	}
 	void Draw(Shader& shader, bool showTex, bool showNorm);
 	float max_pos = 0.0;
+
+	glm::vec3 max_vec = glm::vec3(0.0, 0.0, 0.0);
+	glm::vec3 min_vec = glm::vec3(0.0, 0.0, 0.0);
+
 	float scale = 1.0;
 	glm::vec3 offset = glm::vec3(0.0, 0.0, 0.0);
 	glm::mat4 getModelMatrix();

@@ -62,9 +62,20 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		vertex.Normal = nor_vector;
 
 		glm::vec3 tan_vector;
-		tan_vector.x = mesh->mBitangents[i].x;
-		tan_vector.y = mesh->mBitangents[i].y;
-		tan_vector.z = mesh->mBitangents[i].z;
+		if (mesh->HasTangentsAndBitangents()) {
+			tan_vector.x = mesh->mBitangents[i].x;
+			tan_vector.y = mesh->mBitangents[i].y;
+			tan_vector.z = mesh->mBitangents[i].z;
+		}
+		else {
+			if (abs(glm::dot(glm::vec3(1.0, 0.0, 0.0), vertex.Normal)) > 0.99) {
+				tan_vector = glm::normalize(glm::cross(glm::vec3(0.0, 1.0, 0.0), vertex.Normal));
+			}
+			else {
+				tan_vector = glm::normalize(glm::cross(glm::vec3(1.0, 0.0, 0.0), vertex.Normal));
+			}
+			std::cout << "No Tangent info detected. Generating random Tangent." << std::endl;
+		}
 		vertex.Tangent = tan_vector;
 
 		if (mesh->mTextureCoords[0]) 
@@ -76,6 +87,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		}
 		else {
 			vertex.TexCord = glm::vec2(0.0f, 0.0f);
+			std::cout << "No UV Coordinates. Setting to (0.0, 0.0)" << std::endl;
 		}
 			
 		vertices.push_back(vertex);
@@ -88,6 +100,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 			indices.push_back(face.mIndices[j]);
 	}
 	// material
+	glm::vec3 color = glm::vec3(1.0, 1.0, 1.0);
 	if (mesh->mMaterialIndex >= 0)
 	{
 		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -107,8 +120,12 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		std::vector<Texture> opacityMaps = loadMaterialTextures(material, aiTextureType_OPACITY, "texture_opacity");
 		textures.insert(textures.end(), opacityMaps.begin(), opacityMaps.end());
 
+		aiColor3D diffuse_color(0.f, 0.f, 0.f);
+		material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse_color);
+		color = glm::vec3(diffuse_color[0], diffuse_color[1], diffuse_color[2]);
+
 	}
-	return Mesh(vertices, indices, textures);
+	return Mesh(vertices, indices, textures, color);
 }
 
 
@@ -221,6 +238,8 @@ unsigned int Model::TextureFromFile(const char* path, const std::string& directo
 void Model::updateMaxPos(glm::vec3 pos) {
 	float max_comp = glm::compMax(glm::abs(pos));
 	max_pos = fmax(max_pos, max_comp);
+	max_vec = glm::max(pos, max_vec);
+	min_vec = glm::min(pos, min_vec);
 }
 
 

@@ -23,7 +23,7 @@ void main()
     vs_out.Normal = normalize(transpose(inverse(mat3(model))) * aNormal);
     // vs_out.Normal = aNormal;
     vs_out.TexCoords = aTexCoords;
-    vec3 Ntangent = normalize(aTangent);
+    vec3 Ntangent = aTangent;
     vec3 B = normalize(cross(vs_out.Normal, Ntangent));
     
     vs_out.TBN = mat3(B, Ntangent, vs_out.Normal);

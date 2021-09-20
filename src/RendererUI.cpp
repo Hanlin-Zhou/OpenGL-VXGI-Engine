@@ -138,8 +138,48 @@ void ModelMenu(Renderer& renderer) {
 
 void DebugMenu(Renderer &renderer) {
 	if (ImGui::BeginMenu("Debug")) {
-		ImGui::DragFloat("Debug Window Size", &renderer.DebugWindowSize, 0.02f, -1.0f, 0.9f);
+		ImGui::Text("Debug Window Size");
+		ImGui::DragFloat("##Debug Window Size", &renderer.DebugWindowSize, 0.02f, -1.0f, 0.9f);
 		ImGui::Checkbox("Show Debug Overlay", &renderer.ShowDebug);
+		
+		static std::string current_item = "Select Debug View";
+		static std::string voxel_current_item = "Select Voxel";
+		if (ImGui::BeginCombo("##combo", current_item.c_str())) // The second parameter is the label previewed before opening the combo.
+		{
+			for (int n = 0; n < renderer.DebugViewsName.size(); n++)
+			{
+				if (renderer.DebugViewsID[n] != 0) {
+					bool is_selected = (current_item.compare(renderer.DebugViewsName[n]) == 0);
+					if (ImGui::Selectable(renderer.DebugViewsName[n].c_str(), is_selected)) {
+						current_item = renderer.DebugViewsName[n];
+						renderer.CurrentDebugView = renderer.DebugViewsID[n];
+					}
+					if (is_selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (renderer.CurrentDebugView == renderer.VoxelVisOut) {
+			if (ImGui::BeginCombo("##combo3D", voxel_current_item.c_str()))
+			{
+				for (int n = 0; n < renderer.VoxelDebugViewsName.size(); n++)
+				{
+					if (renderer.VoxelDebugViewsID[n] != 0) {
+						bool is_selected = (voxel_current_item.compare(renderer.VoxelDebugViewsName[n]) == 0);
+						if (ImGui::Selectable(renderer.VoxelDebugViewsName[n].c_str(), is_selected)) {
+							voxel_current_item = renderer.VoxelDebugViewsName[n];
+							renderer.VoxelCurrentDebugView = renderer.VoxelDebugViewsID[n];
+						}
+						if (is_selected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+				}
+				ImGui::EndCombo();
+			}
+		}
 		ImGui::EndMenu();
 	}
 }
@@ -149,13 +189,16 @@ void SVOGIDebugMenu(Renderer& renderer) {
 		
 		ImGui::DragFloat("Specular Aperture", &renderer.GI_SpecularAperture, 0.02f, 0.02f, 1.5f);
 		ImGui::DragFloat("Specular Offset", &renderer.GI_SpecularOffsetFactor, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("Specular Max T", &renderer.GI_SpecularMaxT, 0.01f, 0.01f, 2.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Diffuse Aperture", &renderer.GI_DiffuseAperture, 0.02f, 0.02f, 1.5f);
 		ImGui::DragFloat("Diffuse Cone Angle", &renderer.GI_DiffuseConeAngleMix, 0.01f, 0.01f, 1.0f);
 		ImGui::DragFloat("Diffuse Offset", &renderer.GI_DiffuseOffsetFactor, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("Diffuse Max T", &renderer.GI_DiffuseMaxT, 0.01f, 0.01f, 2.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Occulsion Aperture", &renderer.GI_OcculsionAperture, 0.01f, 0.01f, 1.5f);
 		ImGui::DragFloat("Occulsion Offset", &renderer.GI_OcclusionOffsetFactor, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("DirectionalMaxT", &renderer.GI_DirectionalMaxT, 0.1f, 0.1f, 2.0f);
 		ImGui::Separator();
 		ImGui::DragFloat("Step Size", &renderer.GI_stepSize, 0.1f, 0.02f, 10.0f);
 		
