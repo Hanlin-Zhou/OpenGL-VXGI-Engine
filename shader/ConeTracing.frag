@@ -143,7 +143,7 @@ void main()
     float dir_occlu = OcclusionConeTracing(FragPos.xyz, DirectionalLightDirection, normal, OcculsionAperture, MaxCoord * DirectionalMaxT);
     vec4 Direct = DirectLighting(color.xyz, color.a, FragPos.xyz, viewDir, normal, PointLightPos, point_occlu, dir_occlu);
     vec4 Indirect = color.a * IndirectSpecular + (1.0 - color.a) * IndirectDiffuse;
-    // FragColor = (Direct + vec4(color.xyz, 1.0) * Indirect)  * Valid + (1.0 - Valid) * vec4(skyboxColor, 1.0);
-    // FragColor.xyz = FragColor.xyz / (FragColor.xyz + vec3(1.0));
-    FragColor = Indirect  * Valid;
+    FragColor = (Direct + vec4(color.xyz, 1.0) * Indirect)  * Valid + (1.0 - Valid) * vec4(skyboxColor, 1.0);
+    FragColor.xyz = FragColor.xyz / (FragColor.xyz + vec3(1.0));
+    // FragColor = Indirect  * Valid;
 }  

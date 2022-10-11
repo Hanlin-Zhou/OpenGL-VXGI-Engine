@@ -7,5 +7,5 @@
     "SSAO": false,
     "SVOGI": true,
     "SkyBox": true,
-    "modelPath": "Z:\\Classical Models\\CornellBox\\VXGI_Cornell.obj"
+    "modelPath": "./model/sponza/sponza.obj"
 }

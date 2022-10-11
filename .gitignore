@@ -385,3 +385,4 @@ FodyWeavers.xsd
 /shader/VoxelVisualize.frag
 /shader/VoxelVisualize.vert
 /shader/VoxelVisualize.geom
+/glfw_old
