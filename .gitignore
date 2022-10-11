@@ -367,11 +367,6 @@ FodyWeavers.xsd
 *.sln
 /imgui.ini
 /cmake_install.cmake
-/model/Buddha/buddha.obj
-/model/Buddha/buddha.mtl
-/hdri/artist_workshop_8k.hdr
-/hdri/night.hdr
-/hdri/sunny_grassland.hdr
 /build
 /Main - Copy.cpp
 /TODO.txt
@@ -379,8 +374,6 @@ FodyWeavers.xsd
 /shader/VoxelVisFace.vert
 /shader/VoxelVisTrace.frag
 /shader/VoxelVisTrace.vert
-/model
-/hdri
 *.exe
 /shader/VoxelVisualize.frag
 /shader/VoxelVisualize.vert
